@@ -1,0 +1,371 @@
+openapi: 3.1.0
+info:
+  title: 張り替え事業支援API
+  version: "0.1.0"
+  description: |
+    MVP用の最小OpenAPI。以下の設計に整合:
+    - 作業完了→在庫減算→Undo（無制限）
+    - 納品予定一覧
+    - 画像直アップロード（事前署名）
+    - すべての変化系APIは `X-Idempotency-Key` が必須
+
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: http://localhost:3000
+    description: Local dev
+
+tags:
+  - name: Projects
+  - name: Deliveries
+  - name: Photos
+  - name: Customers
+  - name: History
+
+components:
+  securitySchemes: {}
+  parameters:
+    IdempotencyKey:
+      name: X-Idempotency-Key
+      in: header
+      required: true
+      description: 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。
+      schema:
+        type: string
+        format: uuid
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: クライアントが操作単位で発番する任意のUUID。サーバが応答にも反映。
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    ApiOk:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        data:
+          description: 任意のペイロード
+        correlationId:
+          type: string
+      required: [ok, data]
+    ApiError:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: 入力内容を確認してください
+            fields:
+              type: object
+              additionalProperties:
+                type: string
+          required: [code, message]
+        correlationId:
+          type: string
+      required: [ok, error]
+    ProjectCompleteRequest:
+      type: object
+      properties:
+        completedAt:
+          type: string
+          format: date-time
+          description: UTCのISO8601
+      required: [completedAt]
+    Project:
+      type: object
+      properties:
+        id: { type: integer }
+        customerId: { type: integer }
+        title: { type: string }
+        status:
+          type: string
+          enum: [estimate, scheduled, in_progress, delivered, cancelled]
+        dueOn: { type: string, format: date }
+        location: { type: string }
+        notes: { type: string }
+      required: [id, customerId, title, status]
+    DeliveryTask:
+      type: object
+      properties:
+        taskId: { type: integer }
+        projectId: { type: integer }
+        customerName: { type: string }
+        date: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [pending, done, cancelled]
+        title: { type: string, description: 案件タイトル/概要 }
+      required: [taskId, projectId, date, status]
+    DeliveriesListResponse:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/DeliveryTask' }
+            nextCursor:
+              type: string
+              nullable: true
+          required: [items]
+        correlationId: { type: string }
+      required: [ok, data]
+    PresignRequest:
+      type: object
+      properties:
+        fileName: { type: string }
+        contentType: { type: string }
+        byteSize: { type: integer }
+        scope:
+          type: string
+          enum: [project, item]
+        projectId: { type: integer }
+        projectItemId: { type: integer, nullable: true }
+      required: [fileName, contentType, byteSize, scope, projectId]
+    PresignResponse:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            url: { type: string, format: uri }
+            method: { type: string, enum: [PUT] }
+            headers:
+              type: object
+              additionalProperties: { type: string }
+            key: { type: string, description: S3のオブジェクトキー（attachで渡す） }
+          required: [url, method, headers, key]
+        correlationId: { type: string }
+      required: [ok, data]
+    AttachPhotoRequest:
+      type: object
+      properties:
+        projectId: { type: integer }
+        projectItemId: { type: integer, nullable: true }
+        kind:
+          type: string
+          enum: [before, after, other]
+        blobKey: { type: string, description: presignで返ったkey }
+      required: [projectId, kind, blobKey]
+    HistoryItem:
+      type: object
+      properties:
+        id: { type: integer }
+        action: { type: string, example: project.complete }
+        createdAt: { type: string, format: date-time }
+        summary: { type: string }
+        inverse:
+          type: object
+          description: 逆操作API（method/path/payload）
+          properties:
+            method: { type: string, example: POST }
+            path: { type: string, example: /projects/123/revert-complete }
+            payload: {}
+      required: [id, action, createdAt]
+paths:
+  /projects/{id}/complete:
+    post:
+      tags: [Projects]
+      summary: 作業完了（在庫減算をサーバ側で一括）
+      description: |
+        1操作=1トランザクション。project_items×materials.default_per_item を基に在庫を減算し、監査ログに逆操作を保存する。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectCompleteRequest' }
+            examples:
+              ex1:
+                value: { completedAt: "2025-08-21T09:30:00Z" }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiOk'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          project: { $ref: '#/components/schemas/Project' }
+                          correlationId: { type: string }
+                        required: [project]
+        '409':
+          description: 楽観ロックなどの競合
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+  /projects/{id}/revert-complete:
+    post:
+      tags: [Projects]
+      summary: 作業完了の取り消し（Undo）
+      description: |
+        監査ログのinverse情報をもとに、在庫を反転加算し状態を復元。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiOk' }
+  /deliveries:
+    get:
+      tags: [Deliveries]
+      summary: 納品予定一覧（pendingのみ）
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, done, cancelled]
+            default: pending
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [date.asc, date.desc]
+            default: date.asc
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: 次ページ取得用カーソル
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliveriesListResponse' }
+  /photos/presign:
+    post:
+      tags: [Photos]
+      summary: S3直PUTのための事前署名発行
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PresignRequest' }
+      responses:
+        '200':
+          description: 事前署名を返す
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PresignResponse' }
+  /photos/attach:
+    post:
+      tags: [Photos]
+      summary: アップロード済みファイルの案件への添付登録
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AttachPhotoRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiOk' }
+  /customers/merge:
+    post:
+      tags: [Customers]
+      summary: 顧客の重複統合
+      description: kana と phone が完全一致時は自動統合。それ以外は409で提案フェーズへ。
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sourceCustomerId: { type: integer }
+                targetCustomerId: { type: integer }
+              required: [sourceCustomerId, targetCustomerId]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiOk' }
+        '409':
+          description: 住所矛盾などで自動統合不可
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+  /history:
+    get:
+      tags: [History]
+      summary: 直近の操作履歴（Undo画面用）
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        - name: filter
+          in: query
+          schema:
+            type: string
+            enum: [inventory, task, project]
+            nullable: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/HistoryItem' }
+                    required: [items]
+                  correlationId: { type: string }
+                required: [ok, data]
