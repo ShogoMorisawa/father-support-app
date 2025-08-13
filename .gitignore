@@ -1,0 +1,4 @@
+node_modules/
+/backend/tmp/
+/backend/log/
+/backend/vendor/bundle
