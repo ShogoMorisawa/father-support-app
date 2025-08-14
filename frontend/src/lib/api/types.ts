@@ -348,6 +348,148 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/estimates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 見積予定/履歴一覧
+         * @description from/to を JST の日付(YYYY-MM-DD)として解釈。未指定時は直近の予定を返す実装を推奨。
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description 開始日（JST, YYYY-MM-DD） */
+                    from?: string;
+                    /** @description 終了日（JST, YYYY-MM-DD） */
+                    to?: string;
+                    /** @description 次ページ取得用カーソル */
+                    cursor?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EstimatesListResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** 見積予定の登録（電話受領→カレンダー反映） */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                    /** @description クライアントが操作単位で発番する任意のUUID。サーバが応答にも反映。 */
+                    "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EstimateCreateRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiOk"] & {
+                            data?: {
+                                estimate: components["schemas"]["Estimate"];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/estimates/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 見積結果の確定（契約成立/不成立） */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                    /** @description クライアントが操作単位で発番する任意のUUID。サーバが応答にも反映。 */
+                    "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EstimateCompleteRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiOk"] & {
+                            data?: {
+                                estimate: components["schemas"]["Estimate"];
+                                /** @description 成立時に生成された案件ID */
+                                projectId?: number | null;
+                            };
+                        };
+                    };
+                };
+                /** @description 楽観ロックなどの競合 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -482,6 +624,63 @@ export interface components {
                 path?: string;
                 payload?: unknown;
             };
+            /** @description 現在このイベントを元に戻せる場合に true。省略時は未判定。 */
+            canUndo?: boolean;
+        };
+        Estimate: {
+            id: number;
+            /**
+             * Format: date-time
+             * @description JST想定の見積訪問日時(ISO)
+             */
+            scheduledAt: string;
+            customerId?: number | null;
+            customerName: string;
+            phone: string;
+            address: string;
+            memo?: string | null;
+            /** @enum {string} */
+            status: "scheduled" | "completed" | "cancelled";
+            /** @description 成立確定時に true/false。未確定は null。 */
+            accepted?: boolean | null;
+            /** @description 契約成立（accepted=true）の場合の見積合計（税抜/税込は運用で定義） */
+            priceCents?: number | null;
+            items?: components["schemas"]["EstimateItem"][];
+            /** @description 成立時に紐づく案件ID（生成された場合） */
+            projectId?: number | null;
+        };
+        EstimateItem: {
+            materialId?: number | null;
+            materialName: string;
+            /** @description 使用予定数量。最大3桁小数（内部はDECIMAL(12,3)） */
+            quantity: number;
+        };
+        EstimatesListResponse: {
+            /** @constant */
+            ok: true;
+            data: {
+                items: components["schemas"]["Estimate"][];
+                nextCursor?: string | null;
+            };
+            correlationId?: string;
+        };
+        EstimateCreateRequest: {
+            /**
+             * Format: date-time
+             * @description JSTの見積訪問日時(ISO)
+             */
+            scheduledAt: string;
+            customerId?: number | null;
+            customerName: string;
+            phone: string;
+            address: string;
+            memo?: string | null;
+        };
+        EstimateCompleteRequest: {
+            /** @description 成立なら true／不成立なら false */
+            accepted: boolean;
+            priceCents?: number | null;
+            items?: components["schemas"]["EstimateItem"][];
         };
     };
     responses: never;

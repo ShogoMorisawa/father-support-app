@@ -21,6 +21,7 @@ tags:
   - name: Photos
   - name: Customers
   - name: History
+  - name: Estimates
 
 components:
   securitySchemes: {}
@@ -198,7 +199,83 @@ components:
             method: { type: string, example: POST }
             path: { type: string, example: /projects/123/revert-complete }
             payload: {}
+        canUndo:
+          type: boolean
+          description: 現在このイベントを元に戻せる場合に true。省略時は未判定。
       required: [id, action, createdAt]
+    Estimate:
+      type: object
+      properties:
+        id: { type: integer }
+        scheduledAt: { type: string, format: date-time, description: JST想定の見積訪問日時(ISO) }
+        customerId: { type: integer, nullable: true }
+        customerName: { type: string }
+        phone: { type: string }
+        address: { type: string }
+        memo: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [scheduled, completed, cancelled]
+        accepted:
+          type: boolean
+          nullable: true
+          description: 成立確定時に true/false。未確定は null。
+        priceCents:
+          type: integer
+          nullable: true
+          description: 契約成立（accepted=true）の場合の見積合計（税抜/税込は運用で定義）
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/EstimateItem' }
+        projectId:
+          type: integer
+          nullable: true
+          description: 成立時に紐づく案件ID（生成された場合）
+      required: [id, scheduledAt, customerName, phone, address, status]
+    EstimateItem:
+      type: object
+      properties:
+        materialId: { type: integer, nullable: true }
+        materialName: { type: string }
+        quantity:
+          type: number
+          description: 使用予定数量。最大3桁小数（内部はDECIMAL(12,3)）
+      required: [materialName, quantity]
+    EstimatesListResponse:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Estimate' }
+            nextCursor:
+              type: string
+              nullable: true
+          required: [items]
+        correlationId: { type: string }
+      required: [ok, data]
+    EstimateCreateRequest:
+      type: object
+      properties:
+        scheduledAt: { type: string, format: date-time, description: JSTの見積訪問日時(ISO) }
+        customerId: { type: integer, nullable: true }
+        customerName: { type: string }
+        phone: { type: string }
+        address: { type: string }
+        memo: { type: string, nullable: true }
+      required: [scheduledAt, customerName, phone, address]
+    EstimateCompleteRequest:
+      type: object
+      properties:
+        accepted: { type: boolean, description: 成立なら true／不成立なら false }
+        priceCents: { type: integer, nullable: true }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/EstimateItem' }
+      required: [accepted]
 paths:
   /projects/{id}/complete:
     post:
@@ -390,3 +467,105 @@ paths:
                     required: [items]
                   correlationId: { type: string }
                 required: [ok, data]
+  /estimates:
+    get:
+      tags: [Estimates]
+      summary: 見積予定/履歴一覧
+      description: from/to を JST の日付(YYYY-MM-DD)として解釈。未指定時は直近の予定を返す実装を推奨。
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+          description: 開始日（JST, YYYY-MM-DD）
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+          description: 終了日（JST, YYYY-MM-DD）
+        - name: cursor
+          in: query
+          schema: { type: string }
+          description: 次ページ取得用カーソル
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstimatesListResponse' }
+    post:
+      tags: [Estimates]
+      summary: 見積予定の登録（電話受領→カレンダー反映）
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EstimateCreateRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiOk'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          estimate: { $ref: '#/components/schemas/Estimate' }
+                        required: [estimate]
+  /estimates/{id}/complete:
+    post:
+      tags: [Estimates]
+      summary: 見積結果の確定（契約成立/不成立）
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EstimateCompleteRequest' }
+            examples:
+              accept:
+                value:
+                  accepted: true
+                  priceCents: 35000
+                  items: [{ materialName: '障子紙 かがやき', quantity: 4 }]
+              reject:
+                value:
+                  accepted: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiOk'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          estimate: { $ref: '#/components/schemas/Estimate' }
+                          projectId:
+                            type: integer
+                            nullable: true
+                            description: 成立時に生成された案件ID
+                        required: [estimate]
+        '409':
+          description: 楽観ロックなどの競合
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
