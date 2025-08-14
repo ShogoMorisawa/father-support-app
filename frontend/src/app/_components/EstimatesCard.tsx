@@ -37,7 +37,7 @@ export default function EstimatesCard() {
       ) : (
         <ul className="space-y-2">
           {items.map((e) => (
-            <li key={e.id} className="text-sm">
+            <li key={`${e.id}-${new Date(e.scheduledAt).getTime()}`} className="text-sm">
               <div className="font-medium">{e.customerName}</div>
               <div className="text-gray-600">
                 {new Date(e.scheduledAt).toLocaleString('ja-JP', {

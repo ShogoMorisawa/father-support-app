@@ -52,120 +52,130 @@ export type Estimate = {
   projectId?: number | null;
 };
 
-let nextHistoryId = 3;
+// ---- グローバル固定のモックDB（HMRでも状態維持） ----
+declare global {
+  var __fsapp_db__: any | undefined;
+}
 
-export const db = {
-  tasks: <Task[]>[
-    {
-      taskId: 901,
-      projectId: 101,
-      customerName: '山田様',
-      title: '障子4枚張り替え',
-      dueOn: '2025-08-13', // 昨日 → 超過
-      address: '大分県別府市駅前町1-1',
-      kind: '障子',
-      material: 'かがやき',
-      quantity: 4,
-    },
-    {
-      taskId: 902,
-      projectId: 102,
-      customerName: '川澤様',
-      title: '網戸3枚交換',
-      dueOn: '2025-08-15',
-      address: '大分県別府市北浜3-3-3',
-      kind: '網戸',
-      material: 'グラスファイバー',
-      quantity: 3,
-    },
-    {
-      taskId: 903,
-      projectId: 103,
-      customerName: '森沢様',
-      title: '襖2枚 張替',
-      dueOn: '2025-08-16',
-      address: '大分県別府市浜町5-5-5',
-      kind: '襖',
-      material: '雲竜紙',
-      quantity: 2,
-    },
-  ],
-  deliveries: <Delivery[]>[
-    {
-      taskId: 1001,
-      projectId: 501,
-      customerName: '山田 太郎',
-      date: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
-      status: 'pending',
-      title: '障子4枚 納品',
-    },
-    {
-      taskId: 1002,
-      projectId: 502,
-      customerName: '佐藤 花子',
-      date: new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString(),
-      status: 'pending',
-      title: '網戸2枚 納品',
-    },
-  ],
-  history: <HistoryItem[]>[
-    {
-      id: 1,
-      action: 'project.complete',
-      createdAt: new Date(Date.now() - 3600 * 1000).toISOString(),
-      summary: '山田様の作業を完了（在庫自動減算）',
-      inverse: { method: 'POST', path: '/api/projects/501/revert-complete' },
-    },
-    {
-      id: 2,
-      action: 'stock.receive',
-      createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-      summary: '障子紙 かがやき を入荷 +10',
-      inverse: undefined,
-    },
-  ],
-  estimates: <Estimate[]>[
-    {
-      id: 1,
-      scheduledAt: new Date(new Date().setHours(10, 0, 0, 0)).toISOString(),
-      customerName: '田中様',
-      phone: '090-0000-0000',
-      address: '大分県別府市北浜1-1-1',
-      memo: '犬がいます。インターホン後に少し待つ',
-      status: 'scheduled',
-      items: [{ materialId: null, materialName: '障子紙 かがやき', quantity: 4 }],
-      projectId: null,
-    },
-    {
-      id: 2,
-      scheduledAt: new Date(
-        new Date(Date.now() + 1 * 24 * 3600 * 1000).setHours(15, 0, 0, 0),
-      ).toISOString(),
-      customerName: '佐藤様',
-      phone: '080-1111-1111',
-      address: '大分県別府市駅前町2-2-2',
-      status: 'scheduled',
-      items: [{ materialId: null, materialName: '網戸 グラスファイバー', quantity: 2 }],
-      projectId: null,
-    },
-    {
-      id: 3,
-      scheduledAt: new Date(
-        new Date(Date.now() + 2 * 24 * 3600 * 1000).setHours(9, 30, 0, 0),
-      ).toISOString(),
-      customerName: '鈴木様',
-      phone: '070-2222-2222',
-      address: '大分県別府市浜町3-3-3',
-      status: 'scheduled',
-      items: [],
-      projectId: null,
-    },
-  ],
-};
+const g = globalThis as any;
+if (!g.__fsapp_db__) {
+  g.__fsapp_db__ = {
+    tasks: <Task[]>[
+      {
+        taskId: 901,
+        projectId: 101,
+        customerName: '山田様',
+        title: '障子4枚張り替え',
+        dueOn: '2025-08-13', // 昨日 → 超過
+        address: '大分県別府市駅前町1-1',
+        kind: '障子',
+        material: 'かがやき',
+        quantity: 4,
+      },
+      {
+        taskId: 902,
+        projectId: 102,
+        customerName: '川澤様',
+        title: '網戸3枚交換',
+        dueOn: '2025-08-15',
+        address: '大分県別府市北浜3-3-3',
+        kind: '網戸',
+        material: 'グラスファイバー',
+        quantity: 3,
+      },
+      {
+        taskId: 903,
+        projectId: 103,
+        customerName: '森沢様',
+        title: '襖2枚 張替',
+        dueOn: '2025-08-16',
+        address: '大分県別府市浜町5-5-5',
+        kind: '襖',
+        material: '雲竜紙',
+        quantity: 2,
+      },
+    ],
+    deliveries: <Delivery[]>[
+      {
+        taskId: 1001,
+        projectId: 501,
+        customerName: '山田 太郎',
+        date: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+        status: 'pending',
+        title: '障子4枚 納品',
+      },
+      {
+        taskId: 1002,
+        projectId: 502,
+        customerName: '佐藤 花子',
+        date: new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString(),
+        status: 'pending',
+        title: '網戸2枚 納品',
+      },
+    ],
+    history: <HistoryItem[]>[
+      {
+        id: 1,
+        action: 'project.complete',
+        createdAt: new Date(Date.now() - 3600 * 1000).toISOString(),
+        summary: '山田様の作業を完了（在庫自動減算）',
+        inverse: { method: 'POST', path: '/api/projects/501/revert-complete' },
+      },
+      {
+        id: 2,
+        action: 'stock.receive',
+        createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+        summary: '障子紙 かがやき を入荷 +10',
+        inverse: undefined,
+      },
+    ],
+    estimates: <Estimate[]>[
+      {
+        id: 1,
+        scheduledAt: new Date(new Date().setHours(10, 0, 0, 0)).toISOString(),
+        customerName: '田中様',
+        phone: '090-0000-0000',
+        address: '大分県別府市北浜1-1-1',
+        memo: '犬がいます。インターホン後に少し待つ',
+        status: 'scheduled',
+        items: [{ materialId: null, materialName: '障子紙 かがやき', quantity: 4 }],
+        projectId: null,
+      },
+      {
+        id: 2,
+        scheduledAt: new Date(
+          new Date(Date.now() + 1 * 24 * 3600 * 1000).setHours(15, 0, 0, 0),
+        ).toISOString(),
+        customerName: '佐藤様',
+        phone: '080-1111-1111',
+        address: '大分県別府市駅前町2-2-2',
+        status: 'scheduled',
+        items: [{ materialId: null, materialName: '網戸 グラスファイバー', quantity: 2 }],
+        projectId: null,
+      },
+      {
+        id: 3,
+        scheduledAt: new Date(
+          new Date(Date.now() + 2 * 24 * 3600 * 1000).setHours(9, 30, 0, 0),
+        ).toISOString(),
+        customerName: '鈴木様',
+        phone: '070-2222-2222',
+        address: '大分県別府市浜町3-3-3',
+        status: 'scheduled',
+        items: [],
+        projectId: null,
+      },
+    ],
+  };
+}
+
+export const db = g.__fsapp_db__;
 
 export function addHistory(item: Omit<HistoryItem, 'id' | 'createdAt'>) {
+  const anydb = db as any;
+  anydb._seq = anydb._seq ?? { history: 1, deliveries: 1, estimates: 1 };
   const newItem: HistoryItem = {
-    id: nextHistoryId++,
+    id: anydb._seq.history++,
     createdAt: new Date().toISOString(),
     ...item,
   };
@@ -185,21 +195,27 @@ export function revertComplete(projectId: number) {
 // === Idempotency & History SEQ/型 ===
 
 // Idempotencyの簡易ストア（キー: METHOD:PATH|X-Idempotency-Key）
-export const idem = new Map<string, { status: number; body: unknown }>();
+// Idempotency ストアはグローバルDB上に保持
+(db as any).idem = (db as any).idem ?? new Map<string, { status: number; body: unknown }>();
 
 export function idemKey(method: string, path: string, key: string) {
   return `${method.toUpperCase()}:${path}|${key}`;
 }
 export function getIdem(method: string, path: string, key?: string | null) {
   if (!key) return null;
-  return idem.get(idemKey(method, path, key)) ?? null;
+  const store: Map<string, { status: number; body: unknown }> = (db as any).idem;
+  return store.get(idemKey(method, path, key)) ?? null;
 }
 export function setIdem(method: string, path: string, key: string, status: number, body: unknown) {
   const k = idemKey(method, path, key);
   const val = { status, body };
-  idem.set(k, val);
+  const store: Map<string, { status: number; body: unknown }> = (db as any).idem;
+  store.set(k, val);
   return val;
 }
+
+// 互換用エクスポート（既存の import { idem } ... を壊さない）
+export const idem: Map<string, { status: number; body: unknown }> = (db as any).idem;
 
 // 履歴イベントの型とストア初期化（未定義なら作成）
 (db as any).history = Array.isArray((db as any).history) ? (db as any).history : [];
@@ -217,6 +233,23 @@ export function nextSeq(name: 'history' | 'deliveries' | 'estimates' = 'estimate
   const n = (db as any)._seq[name] ?? 1;
   (db as any)._seq[name] = n + 1;
   return n;
+}
+// 既存データの最大ID以上から採番されるように調整（モックの重複回避）
+export function ensureMonotonicSeqFor(
+  ...collections: Array<Array<{ id?: number; taskId?: number }>>
+): void {
+  const anydb = db as any;
+  anydb._seq = anydb._seq ?? { history: 1, deliveries: 1, estimates: 1 };
+  const max = collections
+    .filter(Boolean)
+    .flat()
+    .reduce((m, r: any) => {
+      const id = typeof r?.id === 'number' ? r.id : typeof r?.taskId === 'number' ? r.taskId : 0;
+      return id > m ? id : m;
+    }, 0);
+  if (anydb._seq.estimates <= max) anydb._seq.estimates = max + 1;
+  if (anydb._seq.history <= max) anydb._seq.history = max + 1;
+  if (anydb._seq.deliveries <= max) anydb._seq.deliveries = max + 1;
 }
 // ----- _seq 初期化：既存最大IDに合わせる -----
 (db as any)._seq = (db as any)._seq ?? { history: 1, deliveries: 1, estimates: 1 };
@@ -322,12 +355,43 @@ export function bootstrapMockState(): void {
 
   for (const t of anydb.tasks as any[]) {
     if (String(t.dueOn) >= todayJST && !hasDeliveryFor.get(t.projectId)) {
+      // tasks の期日は歴史的に "dueOn"(YYYY-MM-DD) と "due"(ISO) が混在することがある
+      const pickDateIso = (() => {
+        // 1) due (ISO想定)
+        if (t.due) {
+          const d = new Date(t.due);
+          if (!Number.isNaN(d.getTime())) return d.toISOString();
+        }
+        // 2) dueOn (YYYY-MM-DDをJSTで解釈)
+        if (t.dueOn) {
+          const d = new Date(`${t.dueOn}T00:00:00+09:00`);
+          if (!Number.isNaN(d.getTime())) return d.toISOString();
+        }
+        // 3) フォールバック：明日(JST)の00:00
+        const now = new Date();
+        const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+        const jstTomorrow = new Date(utc + 9 * 3600 * 1000 + 24 * 3600 * 1000);
+        jstTomorrow.setHours(0, 0, 0, 0);
+        return jstTomorrow.toISOString();
+      })();
+
+      // 既存と同一（日付×案件×タイトル）なら追加しない（重複防止）
+      const exists = deliveries.some(
+        (x: any) => x.projectId === t.projectId && x.title === t.title && x.date === pickDateIso,
+      );
+      if (exists) {
+        continue;
+      }
+
+      // 採番は常に既存の最大ID以上から
+      ensureMonotonicSeqFor(deliveries as any[]);
+
       const d: Delivery = {
         taskId: t.taskId,
         id: anydb._seq.deliveries++,
         projectId: t.projectId,
         customerName: t.customerName,
-        date: new Date(`${t.dueOn}T00:00:00+09:00`).toISOString(),
+        date: pickDateIso,
         status: 'pending',
         title: t.title,
       };

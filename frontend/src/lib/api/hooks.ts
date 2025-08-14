@@ -83,3 +83,36 @@ export function useEstimates(params: { from?: string; to?: string; limit?: numbe
     queryFn: () => api.get<EstimatesListResponse>(`/api/estimates${qs ? `?${qs}` : ''}`),
   });
 }
+
+// --- 見積の新規作成（電話受領→予定登録） ---
+type EstimateCreateRequest = components['schemas']['EstimateCreateRequest'];
+type EstimateCreateResp =
+  paths['/estimates']['post']['responses']['200']['content']['application/json'];
+export function useCreateEstimate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: EstimateCreateRequest) =>
+      api.post<EstimateCreateResp>('/api/estimates', payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['estimates'] });
+    },
+  });
+}
+
+// --- 見積の成立/不成立の確定 ---
+type EstimateCompleteRequest = components['schemas']['EstimateCompleteRequest'];
+type EstimateCompleteResp =
+  paths['/estimates/{id}/complete']['post']['responses']['200']['content']['application/json'];
+export function useCompleteEstimate(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: EstimateCompleteRequest) =>
+      api.post<EstimateCompleteResp>(`/api/estimates/${id}/complete`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['estimates'] });
+      // 成立→作業生成の可能性があるので、タスクや納品の再フェッチも必要に応じて：
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['deliveries', 'pending'] });
+    },
+  });
+}

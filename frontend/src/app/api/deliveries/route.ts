@@ -8,14 +8,16 @@ export async function GET(req: Request) {
   const status = (searchParams.get('status') ?? 'pending') as 'pending' | 'all';
   const order = (searchParams.get('order') ?? 'date.asc') as 'date.asc' | 'date.desc';
 
-  const deliveries = db.deliveries;
+  const deliveries = db.deliveries as Array<{ date: string }>;
 
   // pending: 今日未満を除外（「これから納品するもの」）
   const nowJST = new Date();
   const justToday = new Date(nowJST.getFullYear(), nowJST.getMonth(), nowJST.getDate()); // 00:00 local
   const filtered =
     status === 'pending'
-      ? deliveries.filter((d) => new Date(d.date).getTime() >= justToday.getTime())
+      ? deliveries.filter(
+          (d: { date: string }) => new Date(d.date).getTime() >= justToday.getTime(),
+        )
       : deliveries;
 
   const sorted = filtered.sort((a, b) =>

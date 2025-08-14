@@ -1,46 +1,56 @@
 'use client';
 
 import { useDeliveries } from '@/lib/api/hooks';
-import { components } from '@/lib/api/types';
 import Link from 'next/link';
+import { useEffect } from 'react';
 
 export default function DeliveriesCard() {
-  const { data, isLoading, error } = useDeliveries();
+  const { data, refetch } = useDeliveries();
+
+  useEffect(() => {
+    const i = setInterval(() => refetch(), 60_000);
+    return () => clearInterval(i);
+  }, [refetch]);
+
+  const items = data?.data?.items ?? [];
 
   return (
-    <section className="rounded-lg border p-4 bg-white/50">
+    <div className="rounded-lg border p-4 bg-white">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-semibold">納品予定</h2>
+        <h2 className="text-lg font-bold">納品予定（3件）</h2>
         <Link href="/deliveries" className="text-sm underline">
-          一覧へ
+          すべて見る
         </Link>
       </div>
 
-      {isLoading && <p className="opacity-70">読み込み中です…</p>}
-      {error && <p className="text-red-600">通信に失敗しました。再試行してください</p>}
-
-      {!isLoading && !error && (
+      {items.length === 0 ? (
+        <p className="text-sm text-gray-500">直近の納品予定はありません。</p>
+      ) : (
         <ul className="space-y-2">
-          {(() => {
-            const items = (data?.data?.items ?? [])
-              .slice() // defensive copy
-              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-              .slice(0, 3);
-
-            if (items.length === 0) {
-              return <li className="opacity-70">予定はありません。</li>;
-            }
-
-            return items.map((d: components['schemas']['DeliveryTask']) => (
-              <li key={d.taskId} className="rounded border p-3">
-                <div className="text-sm opacity-70">{new Date(d.date).toLocaleString('ja-JP')}</div>
-                <div className="font-medium">{d.customerName}</div>
-                <div className="text-sm">{d.title}</div>
+          {items.map((d) => {
+            const ts = new Date(d.date).getTime();
+            const key = `d-${(d as any).id ?? 'x'}-${(d as any).projectId ?? 'p'}-${
+              Number.isFinite(ts) ? ts : Math.random()
+            }`;
+            return (
+              <li key={key} className="text-sm">
+                <div className="font-medium">
+                  {(d as any).customerName ?? (d as any).title ?? '納品'}
+                </div>
+                <div className="text-gray-600">
+                  {new Date(d.date).toLocaleString('ja-JP', {
+                    timeZone: 'Asia/Tokyo',
+                    month: 'numeric',
+                    day: 'numeric',
+                  })}
+                  {' / '}
+                  {(d as any).title ?? ''}
+                </div>
               </li>
-            ));
-          })()}
+            );
+          })}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

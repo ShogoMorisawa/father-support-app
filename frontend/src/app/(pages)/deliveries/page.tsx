@@ -14,8 +14,14 @@ export default function DeliveriesPage() {
       <h1 className="text-xl font-semibold">納品予定</h1>
       {items.length === 0 && <p>予定はありません。</p>}
       <ul className="space-y-2">
-        {items.map((d: components['schemas']['DeliveryTask']) => (
-          <li key={d.taskId} className="rounded border p-3">
+        {items.map((d: components['schemas']['DeliveryTask'], idx: number) => (
+          <li
+            key={`del-${(d as any).id ?? 'x'}-${(d as any).projectId ?? 'p'}-${(() => {
+              const ts = new Date(d.date).getTime();
+              return Number.isFinite(ts) ? ts : idx;
+            })()}`}
+            className="rounded border p-3"
+          >
             <div className="text-sm opacity-70">{new Date(d.date).toLocaleString('ja-JP')}</div>
             <div className="font-medium">{d.customerName}</div>
             <div className="text-sm">{d.title}</div>

@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { bootstrapMockState, db, getIdem, nextSeq, setIdem } from '../_mock/db';
+import {
+  bootstrapMockState,
+  db,
+  ensureMonotonicSeqFor,
+  getIdem,
+  nextSeq,
+  setIdem,
+} from '../_mock/db';
 
 type EstimateItem = {
   materialId?: number | null;
@@ -55,6 +62,8 @@ function ensureEstimatesSeed() {
       };
     });
     db.estimates.push(...seed);
+    // 既存データの最大IDに seq を合わせる
+    ensureMonotonicSeqFor(db.estimates as any[]);
   }
 }
 
@@ -87,6 +96,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   await bootstrapMockState();
   ensureEstimatesSeed();
+  // 採番前に、既存の最大IDに seq を寄せる（重複防止）
+  ensureMonotonicSeqFor(db.estimates as any[]);
 
   const idemp = req.headers.get('x-idempotency-key');
   if (!idemp) {
