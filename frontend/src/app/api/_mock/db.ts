@@ -30,6 +30,28 @@ export type HistoryItem = {
   inverse?: { method?: string; path?: string; payload?: unknown } | null;
 };
 
+// ---- Estimates (見積) ----
+export type EstimateItem = {
+  materialId?: number | null;
+  materialName: string;
+  quantity: number; // DECIMAL(12,3) 相当
+};
+
+export type Estimate = {
+  id: number;
+  scheduledAt: string; // ISO (JST想定)
+  customerId?: number | null;
+  customerName: string;
+  phone: string;
+  address: string;
+  memo?: string | null;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  accepted?: boolean | null;
+  priceCents?: number | null;
+  items: EstimateItem[];
+  projectId?: number | null;
+};
+
 let nextHistoryId = 3;
 
 export const db = {
@@ -102,6 +124,43 @@ export const db = {
       inverse: undefined,
     },
   ],
+  estimates: <Estimate[]>[
+    {
+      id: 1,
+      scheduledAt: new Date(new Date().setHours(10, 0, 0, 0)).toISOString(),
+      customerName: '田中様',
+      phone: '090-0000-0000',
+      address: '大分県別府市北浜1-1-1',
+      memo: '犬がいます。インターホン後に少し待つ',
+      status: 'scheduled',
+      items: [{ materialId: null, materialName: '障子紙 かがやき', quantity: 4 }],
+      projectId: null,
+    },
+    {
+      id: 2,
+      scheduledAt: new Date(
+        new Date(Date.now() + 1 * 24 * 3600 * 1000).setHours(15, 0, 0, 0),
+      ).toISOString(),
+      customerName: '佐藤様',
+      phone: '080-1111-1111',
+      address: '大分県別府市駅前町2-2-2',
+      status: 'scheduled',
+      items: [{ materialId: null, materialName: '網戸 グラスファイバー', quantity: 2 }],
+      projectId: null,
+    },
+    {
+      id: 3,
+      scheduledAt: new Date(
+        new Date(Date.now() + 2 * 24 * 3600 * 1000).setHours(9, 30, 0, 0),
+      ).toISOString(),
+      customerName: '鈴木様',
+      phone: '070-2222-2222',
+      address: '大分県別府市浜町3-3-3',
+      status: 'scheduled',
+      items: [],
+      projectId: null,
+    },
+  ],
 };
 
 export function addHistory(item: Omit<HistoryItem, 'id' | 'createdAt'>) {
@@ -153,14 +212,14 @@ export type HistoryEvent = {
   summary?: string;
   inverse: { method: 'POST'; path: string; payload?: unknown | null };
 };
-export function nextSeq(name: 'history' | 'deliveries') {
-  (db as any)._seq = (db as any)._seq ?? { history: 1, deliveries: 1 };
+export function nextSeq(name: 'history' | 'deliveries' | 'estimates' = 'estimates') {
+  (db as any)._seq = (db as any)._seq ?? { history: 1, deliveries: 1, estimates: 1 };
   const n = (db as any)._seq[name] ?? 1;
   (db as any)._seq[name] = n + 1;
   return n;
 }
 // ----- _seq 初期化：既存最大IDに合わせる -----
-(db as any)._seq = (db as any)._seq ?? { history: 1, deliveries: 1 };
+(db as any)._seq = (db as any)._seq ?? { history: 1, deliveries: 1, estimates: 1 };
 {
   const histArr: any[] = (db as any).history;
   const maxHistId = histArr.reduce((m, ev) => {
@@ -190,6 +249,7 @@ export function bootstrapMockState(): void {
   anydb.projects = Array.isArray(anydb.projects) ? anydb.projects : [];
   anydb.history = Array.isArray(anydb.history) ? anydb.history : [];
   anydb.deliveries = Array.isArray(anydb.deliveries) ? anydb.deliveries : [];
+  anydb.estimates = Array.isArray(anydb.estimates) ? anydb.estimates : [];
 
   // tasks から projects を補完（無ければ作る）
   const projects: any[] = anydb.projects;

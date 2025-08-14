@@ -1,7 +1,9 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+
 import DeliveriesCard from './_components/DeliveriesCard';
+import EstimatesCard from './_components/EstimatesCard';
 
 export default function Page() {
   // 動作確認用に軽いquery（あとで消してOK）
@@ -27,6 +29,7 @@ export default function Page() {
       {/* v1.2追加：直近3件・日付昇順の「納品予定」カード */}
       <div className="grid gap-3 sm:grid-cols-2">
         <DeliveriesCard />
+        <EstimatesCard />
       </div>
       <p className="text-sm text-gray-600">{isLoading ? 'Loading...' : data}</p>
       <div className="grid gap-3 sm:grid-cols-2">

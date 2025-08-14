@@ -6,10 +6,6 @@ import type { components, paths } from './types';
 
 type DeliveriesResp =
   paths['/deliveries']['get']['responses']['200']['content']['application/json'];
-type CompleteResp =
-  paths['/projects/{id}/complete']['post']['responses']['200']['content']['application/json'];
-type HistoryItemUI = components['schemas']['HistoryItem'];
-type HistoryRespUI = { ok: boolean; data: { items: HistoryItemUI[] }; correlationId?: string };
 
 export function useDeliveries() {
   return useQuery({
@@ -17,6 +13,9 @@ export function useDeliveries() {
     queryFn: () => api.get<DeliveriesResp>('/api/deliveries?status=pending&order=date.asc'),
   });
 }
+
+type HistoryItemUI = components['schemas']['HistoryItem'];
+type HistoryRespUI = { ok: boolean; data: { items: HistoryItemUI[] }; correlationId?: string };
 
 export function useHistory(limit = 10) {
   return useQuery({
@@ -43,6 +42,9 @@ export function useUndoMutation() {
   });
 }
 
+type CompleteResp =
+  paths['/projects/{id}/complete']['post']['responses']['200']['content']['application/json'];
+
 export function useCompleteProject() {
   const qc = useQueryClient();
   return useMutation({
@@ -64,5 +66,20 @@ export function useCompleteProject() {
       qc.invalidateQueries({ queryKey: ['history'] });
       qc.invalidateQueries({ queryKey: ['tasks'] }); // 後続で実装
     },
+  });
+}
+
+type EstimatesListResponse = components['schemas']['EstimatesListResponse'];
+
+export function useEstimates(params: { from?: string; to?: string; limit?: number } = {}) {
+  const search = new URLSearchParams();
+  if (params.from) search.set('from', params.from);
+  if (params.to) search.set('to', params.to);
+  if (typeof params.limit === 'number') search.set('limit', String(params.limit));
+  const qs = search.toString();
+
+  return useQuery({
+    queryKey: ['estimates', qs],
+    queryFn: () => api.get<EstimatesListResponse>(`/api/estimates${qs ? `?${qs}` : ''}`),
   });
 }

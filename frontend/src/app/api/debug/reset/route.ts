@@ -7,6 +7,7 @@ export async function GET() {
   const tasks = Array.isArray((db as any).tasks) ? (db as any).tasks : [];
   const history = Array.isArray((db as any).history) ? (db as any).history : [];
   const deliveries = Array.isArray((db as any).deliveries) ? (db as any).deliveries : [];
+  const estimates = Array.isArray((db as any).estimates) ? (db as any).estimates : [];
   const seq = (db as any)._seq ?? {};
   const idemSize = idem && typeof (idem as any).size === 'number' ? (idem as any).size : 0;
   const todayJST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
@@ -22,6 +23,7 @@ export async function GET() {
         tasks: tasks.length,
         history: history.length,
         deliveries: deliveries.length,
+        estimates: estimates.length,
         pendingDeliveries: pendingDeliveries.length,
         idem: idemSize,
       },
