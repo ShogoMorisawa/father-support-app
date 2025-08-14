@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 張り替え事業支援API
-  version: "0.1.0"
+  version: '0.1.0'
   description: |
     MVP用の最小OpenAPI。以下の設計に整合:
     - 作業完了→在庫減算→Undo（無制限）
@@ -109,6 +109,27 @@ components:
           enum: [pending, done, cancelled]
         title: { type: string, description: 案件タイトル/概要 }
       required: [taskId, projectId, date, status]
+    CompleteResult:
+      type: object
+      properties:
+        ok: { type: boolean, default: true }
+        data:
+          type: object
+          properties:
+            projectId: { type: integer }
+            completed: { type: boolean, default: true }
+            message: { type: string, example: '作業を完了しました' }
+        correlationId: { type: string }
+    Error:
+      type: object
+      properties:
+        ok: { type: boolean, default: false }
+        error:
+          type: object
+          properties:
+            code: { type: string, example: 'conflict' }
+            message: { type: string, example: '操作が競合しました' }
+        correlationId: { type: string }
     DeliveriesListResponse:
       type: object
       properties:
@@ -199,7 +220,7 @@ paths:
             schema: { $ref: '#/components/schemas/ProjectCompleteRequest' }
             examples:
               ex1:
-                value: { completedAt: "2025-08-21T09:30:00Z" }
+                value: { completedAt: '2025-08-21T09:30:00Z' }
       responses:
         '200':
           description: OK

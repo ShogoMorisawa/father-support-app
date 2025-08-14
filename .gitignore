@@ -1,4 +1,20 @@
+# macOS
+.DS_Store
+
+# node / npm
 node_modules/
-/backend/tmp/
-/backend/log/
-/backend/vendor/bundle
+
+# Next.js (frontend)
+frontend/.next/
+frontend/out/
+
+# Env files
+.env*
+frontend/.env*
+backend/.env*
+
+# Rails (backend)
+backend/log/
+backend/tmp/
+backend/vendor/
+backend/node_modules/
