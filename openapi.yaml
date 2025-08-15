@@ -171,6 +171,52 @@ components:
           required: [items]
         correlationId: { type: string }
       required: [ok, data]
+
+    DeliveriesBulkShiftRequest:
+      type: object
+      properties:
+        days:
+          type: integer
+          description: 'シフト日数。負数=前倒し、正数=延期。0は不可。'
+          minimum: -30
+          maximum: 30
+        status:
+          type: string
+          enum: [pending, all]
+          default: pending
+        from:
+          type: string
+          description: '対象期間の開始（YYYY-MM-DD）'
+        to:
+          type: string
+          description: '対象期間の終了（YYYY-MM-DD）'
+        ids:
+          type: array
+          description: '明示的に対象IDを指定する場合。指定時は from/to を無視。'
+          items: { type: integer }
+        reason:
+          type: string
+          nullable: true
+      required: [days]
+
+    DeliveriesBulkShiftResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data:
+          type: object
+          properties:
+            affected: { type: integer }
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  oldDate: { type: string }
+                  newDate: { type: string }
+        correlationId: { type: string }
+      required: [ok, data]
     PresignRequest:
       type: object
       properties:
@@ -331,6 +377,33 @@ components:
               items: { $ref: '#/components/schemas/Material' }
         correlationId: { type: string }
       required: [ok, data]
+
+    MaterialReceiveRequest:
+      type: object
+      properties:
+        quantity:
+          type: number
+          format: double
+          description: '加算数量（DECIMAL(12,3)相当）。正の数。'
+        note:
+          type: string
+          nullable: true
+      required: [quantity]
+
+    MaterialReceiveResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data:
+          type: object
+          properties:
+            materialId: { type: integer }
+            name: { type: string }
+            currentQty: { type: number, format: double }
+            thresholdQty: { type: number, format: double }
+            low: { type: boolean }
+        correlationId: { type: string }
+      required: [ok, data]
     LowStockItem:
       type: object
       properties:
@@ -463,6 +536,28 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DeliveriesListResponse' }
+
+  /deliveries/bulk-shift:
+    post:
+      tags: [Deliveries]
+      summary: '納品予定を一括で±N日シフトする（Idempotency必須）'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeliveriesBulkShiftRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeliveriesBulkShiftResponse' }
+        '400': { description: 'Idempotencyキーなし など' }
+        '404': { description: '対象なし' }
+        '422': { description: 'days=0 など不正' }
   /photos/presign:
     post:
       tags: [Photos]
@@ -708,3 +803,32 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/MaterialsListResponse' }
+
+  /materials/{id}/receive:
+    post:
+      tags: [Materials]
+      summary: '在庫を入庫（加算）する'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MaterialReceiveRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaterialReceiveResponse' }
+        '400':
+          description: Idempotencyキーなし 等
+        '404':
+          description: 在庫が存在しない
+        '422':
+          description: 不正な数量

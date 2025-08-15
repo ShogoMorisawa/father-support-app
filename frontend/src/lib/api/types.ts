@@ -169,6 +169,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/deliveries/bulk-shift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 納品予定を一括で±N日シフトする（Idempotency必須） */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                    /** @description クライアントが操作単位で発番する任意のUUID。サーバが応答にも反映。 */
+                    "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeliveriesBulkShiftRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveriesBulkShiftResponse"];
+                    };
+                };
+                /** @description Idempotencyキーなし など */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 対象なし */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description days=0 など不正 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/photos/presign": {
         parameters: {
             query?: never;
@@ -617,6 +683,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/materials/{id}/receive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 在庫を入庫（加算）する */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                    /** @description クライアントが操作単位で発番する任意のUUID。サーバが応答にも反映。 */
+                    "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MaterialReceiveRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MaterialReceiveResponse"];
+                    };
+                };
+                /** @description Idempotencyキーなし 等 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 在庫が存在しない */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 不正な数量 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -714,6 +848,34 @@ export interface components {
             data: {
                 items: components["schemas"]["DeliveryTask"][];
                 nextCursor?: string | null;
+            };
+            correlationId?: string;
+        };
+        DeliveriesBulkShiftRequest: {
+            /** @description シフト日数。負数=前倒し、正数=延期。0は不可。 */
+            days: number;
+            /**
+             * @default pending
+             * @enum {string}
+             */
+            status: "pending" | "all";
+            /** @description 対象期間の開始（YYYY-MM-DD） */
+            from?: string;
+            /** @description 対象期間の終了（YYYY-MM-DD） */
+            to?: string;
+            /** @description 明示的に対象IDを指定する場合。指定時は from/to を無視。 */
+            ids?: number[];
+            reason?: string | null;
+        };
+        DeliveriesBulkShiftResponse: {
+            ok: boolean;
+            data: {
+                affected?: number;
+                items?: {
+                    id?: number;
+                    oldDate?: string;
+                    newDate?: string;
+                }[];
             };
             correlationId?: string;
         };
@@ -845,6 +1007,27 @@ export interface components {
             ok: boolean;
             data: {
                 items?: components["schemas"]["Material"][];
+            };
+            correlationId?: string;
+        };
+        MaterialReceiveRequest: {
+            /**
+             * Format: double
+             * @description 加算数量（DECIMAL(12,3)相当）。正の数。
+             */
+            quantity: number;
+            note?: string | null;
+        };
+        MaterialReceiveResponse: {
+            ok: boolean;
+            data: {
+                materialId?: number;
+                name?: string;
+                /** Format: double */
+                currentQty?: number;
+                /** Format: double */
+                thresholdQty?: number;
+                low?: boolean;
             };
             correlationId?: string;
         };

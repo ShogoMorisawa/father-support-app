@@ -31,6 +31,8 @@ module Api
           # 取り消し後にまた完了できる状態（=未完了）
           prj = Project.find_by(id: log.target_id)
           prj.present? && !prj.completed?
+        elsif log.action == "deliveries.bulk_shift"
+          true
         else
           false
         end

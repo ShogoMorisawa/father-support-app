@@ -9,9 +9,14 @@ export default function DeliveriesCard() {
     <div className="rounded-lg border p-4 bg-white">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-lg font-bold">納品予定（3件）</h2>
-        <Link href="/history" className="text-sm underline">
-          履歴を見る
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/deliveries/tools" className="text-sm underline">
+            調整ツール
+          </Link>
+          <Link href="/history" className="text-sm underline">
+            履歴を見る
+          </Link>
+        </div>
       </div>
       {items.length === 0 ? (
         <p className="text-sm text-gray-500">直近の納品予定はありません。</p>

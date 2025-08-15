@@ -19,6 +19,7 @@ Rails.application.routes.draw do
 
     # /api/deliveries?status=pending&order=date.asc&limit=200
     resources :deliveries, only: [ :index ]
+    post "deliveries/bulk-shift", to: "deliveries/bulk_shifts#create"
 
     # /api/history  … 直近の履歴（監査ログ）
     get "history", to: "histories#index"

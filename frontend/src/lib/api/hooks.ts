@@ -80,6 +80,36 @@ export function useLowMaterials() {
   });
 }
 
+export function useBulkShiftDeliveries() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      days: number;
+      status?: 'pending' | 'all';
+      from?: string;
+      to?: string;
+      ids?: number[];
+      reason?: string;
+    }) => api.post(`/deliveries/bulk-shift`, payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+    },
+  });
+}
+
+export function useReceiveMaterial() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, quantity, note }: { id: number; quantity: number; note?: string }) =>
+      api.post(`/materials/${id}/receive`, { quantity, note }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['materials'] });
+      qc.invalidateQueries({ queryKey: ['materials', 'low'] });
+    },
+  });
+}
+
 // ---- Customers
 export function useCustomerSearch(q: string, limit = 20) {
   return useQuery({
