@@ -10,9 +10,16 @@ export default function LowStockCard() {
     <div className="rounded-lg border p-4 bg-white">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-lg font-bold">在庫アラート</h2>
-        <Link href="/inventory" className="text-sm underline">
-          在庫を見る
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/inventory" className="text-sm underline">
+            在庫を見る
+          </Link>
+          {count > 0 && (
+            <Link href="/inventory/order" className="text-sm underline">
+              発注テンプレを作成
+            </Link>
+          )}
+        </div>
       </div>
       {count === 0 ? (
         <p className="text-sm text-gray-600">在庫は十分です。</p>
