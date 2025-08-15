@@ -14,7 +14,7 @@ class CreateCoreEntities < ActiveRecord::Migration[7.1]
         CREATE INDEX idx_customers_name_trgm ON customers USING gin (name gin_trgm_ops);
         CREATE INDEX idx_customers_name_kana_trgm ON customers USING gin (name_kana gin_trgm_ops);
       SQL
-  
+
       # materials（在庫）
       create_table :materials do |t|
         t.string  :name,  null: false
@@ -25,7 +25,7 @@ class CreateCoreEntities < ActiveRecord::Migration[7.1]
         t.timestamps
       end
       add_index :materials, :name, unique: true
-  
+
       # projects（案件）
       create_table :projects do |t|
         t.references :customer, null: false, foreign_key: { on_delete: :restrict }
@@ -35,8 +35,8 @@ class CreateCoreEntities < ActiveRecord::Migration[7.1]
         t.integer :lock_version, null: false, default: 0
         t.timestamps
       end
-      add_index :projects, [:customer_id, :status]
-  
+      add_index :projects, [ :customer_id, :status ]
+
       # tasks（作業）
       create_table :tasks do |t|
         t.references :project, null: false, foreign_key: { on_delete: :cascade }
@@ -47,8 +47,8 @@ class CreateCoreEntities < ActiveRecord::Migration[7.1]
         t.integer :lock_version, null: false, default: 0
         t.timestamps
       end
-      add_index :tasks, [:project_id, :due_on]
-  
+      add_index :tasks, [ :project_id, :due_on ]
+
       # task_materials（作業×資材×数量｜最良B案：実績中心）
       create_table :task_materials do |t|
         t.references :task,     null: false, foreign_key: { on_delete: :cascade }
@@ -58,8 +58,8 @@ class CreateCoreEntities < ActiveRecord::Migration[7.1]
         t.decimal :qty_used,    precision: 12, scale: 3, null: false, default: 0
         t.timestamps
       end
-      add_index :task_materials, [:task_id, :material_id]
-  
+      add_index :task_materials, [ :task_id, :material_id ]
+
       # deliveries（納品予定）
       create_table :deliveries do |t|
         t.references :project, null: false, foreign_key: { on_delete: :cascade }
@@ -68,12 +68,12 @@ class CreateCoreEntities < ActiveRecord::Migration[7.1]
         t.string  :title
         t.timestamps
       end
-      add_index :deliveries, [:project_id, :date]
+      add_index :deliveries, [ :project_id, :date ]
       execute <<~SQL
         CREATE INDEX idx_deliveries_title_trgm ON deliveries USING gin (title gin_trgm_ops);
       SQL
     end
-  
+
     def down
       drop_table :deliveries
       drop_table :task_materials
@@ -84,5 +84,4 @@ class CreateCoreEntities < ActiveRecord::Migration[7.1]
       execute "DROP INDEX IF EXISTS idx_customers_name_kana_trgm"
       drop_table :customers
     end
-  end
-  
+end

@@ -11,9 +11,9 @@ class CreateEstimatesAndAudit < ActiveRecord::Migration[7.1]
         t.jsonb    :customer_snapshot, null: false, default: {} # {name, phone, address}
         t.timestamps
       end
-      add_index :estimates, [:status, :scheduled_at]
+      add_index :estimates, [ :status, :scheduled_at ]
       add_index :estimates, :project_id unless index_exists?(:estimates, :project_id)
-  
+
       # --- estimate_items（見積アイテム：スナップショット） ---
       create_table :estimate_items do |t|
         t.references :estimate, null: false, foreign_key: true
@@ -22,7 +22,7 @@ class CreateEstimatesAndAudit < ActiveRecord::Migration[7.1]
         t.decimal :quantity, precision: 12, scale: 3, null: false
         t.timestamps
       end
-  
+
       # --- audit_logs（履歴イベント／Undo逆操作を保存） ---
       create_table :audit_logs do |t|
         t.string   :action,      null: false          # e.g. "project.complete"
@@ -34,8 +34,8 @@ class CreateEstimatesAndAudit < ActiveRecord::Migration[7.1]
         t.string   :actor
         t.datetime :created_at,  null: false, default: -> { "CURRENT_TIMESTAMP" }
       end
-      add_index :audit_logs, [:target_type, :target_id, :created_at]
-  
+      add_index :audit_logs, [ :target_type, :target_id, :created_at ]
+
       # --- idempotency_keys（結果リプレイ用の永続化） ---
       create_table :idempotency_keys do |t|
         t.string   :key,     null: false
@@ -45,5 +45,4 @@ class CreateEstimatesAndAudit < ActiveRecord::Migration[7.1]
       end
       add_index :idempotency_keys, :key, unique: true
     end
-  end
-  
+end

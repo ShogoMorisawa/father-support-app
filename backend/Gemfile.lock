@@ -333,6 +333,8 @@ DEPENDENCIES
   puma (>= 5.0)
   rack-cors (~> 2.0)
   rails (~> 8.0.2)
+  rubocop
+  rubocop-rails
   rubocop-rails-omakase
   solid_cable
   solid_cache

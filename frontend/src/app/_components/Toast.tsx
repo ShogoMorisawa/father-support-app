@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 type Props = {
   message: string;
@@ -16,13 +16,17 @@ export default function Toast({
   actionLabel,
   onAction,
 }: Props) {
+  const [open, setOpen] = useState(true);
   useEffect(() => {
-    const t = setTimeout(onClose, durationMs);
+    const t = setTimeout(() => {
+      setOpen(false);
+      onClose();
+    }, durationMs);
     return () => clearTimeout(t);
-  }, [onClose, durationMs]);
-
+  }, [durationMs, onClose]);
+  if (!open) return null;
   return (
-    <div className="fixed bottom-4 right-4 z-50 rounded bg-black text-white px-4 py-3 shadow-lg flex items-center gap-3">
+    <div className="fixed bottom-4 right-4 z-50 rounded bg-black text-white px-4 py-3 shadow-lg flex items-center gap-2">
       <span className="text-sm">{message}</span>
       {actionLabel && onAction && (
         <button
@@ -32,7 +36,13 @@ export default function Toast({
           {actionLabel}
         </button>
       )}
-      <button onClick={onClose} className="ml-2 opacity-80 hover:opacity-100">
+      <button
+        onClick={() => {
+          setOpen(false);
+          onClose();
+        }}
+        className="ml-2 opacity-80 hover:opacity-100"
+      >
         ×
       </button>
     </div>

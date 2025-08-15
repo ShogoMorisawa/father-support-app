@@ -14,7 +14,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 作業完了（在庫減算をサーバ側で一括）
+         * 案件を完了する（在庫減算・納品予定の整理）
          * @description 1操作=1トランザクション。project_items×materials.default_per_item を基に在庫を減算し、監査ログに逆操作を保存する。
          *
          */
@@ -44,10 +44,21 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiOk"] & {
-                            data?: {
-                                project: components["schemas"]["Project"];
-                                correlationId?: string;
+                        "application/json": {
+                            ok: boolean;
+                            data: {
+                                projectId?: number;
+                                /** @enum {string} */
+                                status?: "in_progress" | "delivery_scheduled" | "completed";
+                                /** @description 完了後に閾値を下回っている在庫（ゼロ件可） */
+                                lowStock?: {
+                                    materialId: number;
+                                    name: string;
+                                    /** Format: double */
+                                    currentQty?: number;
+                                    /** Format: double */
+                                    thresholdQty?: number;
+                                }[];
                             };
                         };
                     };
@@ -238,6 +249,46 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 顧客の簡易検索（名前・カナ・電話・部分一致） */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description 検索語。未指定なら全件（上限limit） */
+                    q?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomersListResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -497,13 +548,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 資材の在庫一覧を取得 */
+        /** 在庫一覧を取得 */
         get: {
             parameters: {
                 query?: {
-                    order?: "name.asc" | "name.desc";
-                    /** @description true の場合は低在庫のみ返す */
-                    onlyLow?: boolean;
+                    /** @description 並び順。既定は name.asc。 */
+                    order?: "name.asc" | "name.desc" | "qty.asc" | "qty.desc";
                     limit?: number;
                 };
                 header?: never;
@@ -538,12 +588,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 低在庫の資材一覧を取得 */
+        /** 低在庫（currentQty < thresholdQty）の一覧を取得 */
         get: {
             parameters: {
-                query?: {
-                    limit?: number;
-                };
+                query?: never;
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -556,7 +604,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["LowStockListResponse"];
+                        "application/json": components["schemas"]["MaterialsListResponse"];
                     };
                 };
             };
@@ -573,6 +621,20 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Customer: {
+            id: number;
+            name: string;
+            nameKana?: string | null;
+            phone?: string | null;
+            address?: string | null;
+        };
+        CustomersListResponse: {
+            ok: boolean;
+            data: {
+                items?: components["schemas"]["Customer"][];
+            };
+            correlationId?: string;
+        };
         ApiOk: {
             /** @constant */
             ok: true;
@@ -761,21 +823,28 @@ export interface components {
             priceCents?: number | null;
             items?: components["schemas"]["EstimateItem"][];
         };
+        /** @description 資材の在庫。数量は DECIMAL(12,3)。 */
         Material: {
             id: number;
             name: string;
-            /** @description 例) 枚, 本, m² */
             unit?: string | null;
-            /** @description 現在数量（DECIMAL(12,3)） */
+            /**
+             * Format: double
+             * @description 現在在庫数（DECIMAL(12,3)相当）
+             */
             currentQty: number;
-            /** @description 閾値（この値を下回ると低在庫） */
+            /**
+             * Format: double
+             * @description 在庫閾値（DECIMAL(12,3)相当）
+             */
             thresholdQty: number;
+            /** @description currentQty < thresholdQty の判定 */
+            low: boolean;
         };
         MaterialsListResponse: {
-            /** @constant */
-            ok: true;
+            ok: boolean;
             data: {
-                items: components["schemas"]["Material"][];
+                items?: components["schemas"]["Material"][];
             };
             correlationId?: string;
         };

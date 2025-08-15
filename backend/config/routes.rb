@@ -8,7 +8,7 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   # root "posts#index"
   namespace :api do
-    resource :health, only: [:show]
+    resource :health, only: [ :show ]
 
     resources :projects, only: [] do
       # /api/projects/:project_id/complete
@@ -18,9 +18,18 @@ Rails.application.routes.draw do
     end
 
     # /api/deliveries?status=pending&order=date.asc&limit=200
-    resources :deliveries, only: [:index]
+    resources :deliveries, only: [ :index ]
 
     # /api/history  … 直近の履歴（監査ログ）
     get "history", to: "histories#index"
+
+    resources :estimates, only: [ :index, :create ] do
+      post :complete, to: "estimates/completions#create"
+    end
+
+    resources :materials, only: [ :index ]
+    get "materials/low", to: "materials#low"
+
+    get "customers/search", to: "customers#search"
   end
 end

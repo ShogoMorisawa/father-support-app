@@ -44,6 +44,29 @@ components:
         type: string
         format: uuid
   schemas:
+    Customer:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        nameKana: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+      required: [id, name]
+
+    CustomersListResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Customer' }
+        correlationId: { type: string }
+      required: [ok, data]
+
     ApiOk:
       type: object
       properties:
@@ -277,36 +300,35 @@ components:
           type: array
           items: { $ref: '#/components/schemas/EstimateItem' }
       required: [accepted]
-    # 在庫の基本単位（数量は DECIMAL(12,3) 想定 → multipleOf 0.001 で表現）
     Material:
       type: object
+      description: '資材の在庫。数量は DECIMAL(12,3)。'
       properties:
         id: { type: integer }
         name: { type: string }
-        unit:
-          type: string
-          nullable: true
-          description: 例) 枚, 本, m²
+        unit: { type: string, nullable: true }
         currentQty:
           type: number
-          multipleOf: 0.001
-          description: 現在数量（DECIMAL(12,3)）
+          format: double
+          description: '現在在庫数（DECIMAL(12,3)相当）'
         thresholdQty:
           type: number
-          multipleOf: 0.001
-          description: 閾値（この値を下回ると低在庫）
-      required: [id, name, currentQty, thresholdQty]
+          format: double
+          description: '在庫閾値（DECIMAL(12,3)相当）'
+        low:
+          type: boolean
+          description: 'currentQty < thresholdQty の判定'
+      required: [id, name, currentQty, thresholdQty, low]
     MaterialsListResponse:
       type: object
       properties:
-        ok: { type: boolean, const: true }
+        ok: { type: boolean }
         data:
           type: object
           properties:
             items:
               type: array
               items: { $ref: '#/components/schemas/Material' }
-          required: [items]
         correlationId: { type: string }
       required: [ok, data]
     LowStockItem:
@@ -338,7 +360,7 @@ paths:
   /projects/{id}/complete:
     post:
       tags: [Projects]
-      summary: 作業完了（在庫減算をサーバ側で一括）
+      summary: '案件を完了する（在庫減算・納品予定の整理）'
       description: |
         1操作=1トランザクション。project_items×materials.default_per_item を基に在庫を減算し、監査ログに逆操作を保存する。
       parameters:
@@ -362,16 +384,26 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiOk'
-                  - type: object
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  data:
+                    type: object
                     properties:
-                      data:
-                        type: object
-                        properties:
-                          project: { $ref: '#/components/schemas/Project' }
-                          correlationId: { type: string }
-                        required: [project]
+                      projectId: { type: integer }
+                      status: { type: string, enum: [in_progress, delivery_scheduled, completed] }
+                      lowStock:
+                        type: array
+                        description: '完了後に閾値を下回っている在庫（ゼロ件可）'
+                        items:
+                          type: object
+                          properties:
+                            materialId: { type: integer }
+                            name: { type: string }
+                            currentQty: { type: number, format: double }
+                            thresholdQty: { type: number, format: double }
+                          required: [materialId, name]
+                required: [ok, data]
         '409':
           description: 楽観ロックなどの競合
           content:
@@ -465,6 +497,25 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiOk' }
+  /customers/search:
+    get:
+      tags: [Customers]
+      summary: '顧客の簡易検索（名前・カナ・電話・部分一致）'
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+          description: '検索語。未指定なら全件（上限limit）'
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomersListResponse' }
+
   /customers/merge:
     post:
       tags: [Customers]
@@ -627,26 +678,19 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
-  # 在庫一覧（将来の検索/並び替えに拡張余地を残して最小）
   /materials:
     get:
       tags: [Materials]
-      summary: 資材の在庫一覧を取得
+      summary: '在庫一覧を取得'
       parameters:
-        - name: order
-          in: query
+        - in: query
+          name: order
           schema:
             type: string
-            enum: [name.asc, name.desc]
-            default: name.asc
-        - name: onlyLow
-          in: query
-          schema:
-            type: boolean
-            default: false
-          description: true の場合は低在庫のみ返す
-        - name: limit
-          in: query
+            enum: [name.asc, name.desc, qty.asc, qty.desc]
+          description: '並び順。既定は name.asc。'
+        - in: query
+          name: limit
           schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
       responses:
         '200':
@@ -654,18 +698,13 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/MaterialsListResponse' }
-  # 低在庫だけの軽量エンドポイント（ホームのバッジ/クイックビュー用）
   /materials/low:
     get:
       tags: [Materials]
-      summary: 低在庫の資材一覧を取得
-      parameters:
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      summary: '低在庫（currentQty < thresholdQty）の一覧を取得'
       responses:
         '200':
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/LowStockListResponse' }
+              schema: { $ref: '#/components/schemas/MaterialsListResponse' }

@@ -1,9 +1,9 @@
 module Api
     class HistoriesController < Api::BaseController
       def index
-        limit = [(params[:limit] || 10).to_i, 100].min
+        limit = [ (params[:limit] || 10).to_i, 100 ].min
         logs = AuditLog.order(created_at: :desc).limit(limit)
-  
+
         items = logs.map do |l|
           can_undo = compute_can_undo(l)
           {
@@ -17,12 +17,12 @@ module Api
             canUndo: can_undo
           }
         end
-  
+
         render_ok(data: { items: items })
       end
-  
+
       private
-  
+
       def compute_can_undo(log)
         return false if log.inverse.blank?
         if log.action == "project.complete"
@@ -38,5 +38,4 @@ module Api
         false
       end
     end
-  end
-  
+end

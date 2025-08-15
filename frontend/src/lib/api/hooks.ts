@@ -1,118 +1,139 @@
 'use client';
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from './client';
-// openapi-typescript で生成される型
-import type { components, paths } from './types';
+import { api, callInverse } from './client';
 
-type DeliveriesResp =
-  paths['/deliveries']['get']['responses']['200']['content']['application/json'];
-
-export function useDeliveries() {
+export function useDeliveries(
+  params: { status?: 'pending' | 'all'; order?: 'date.asc' | 'date.desc'; limit?: number } = {},
+) {
+  const { status = 'pending', order = 'date.asc', limit = 3 } = params;
   return useQuery({
-    queryKey: ['deliveries', 'pending'],
-    queryFn: () => api.get<DeliveriesResp>('/api/deliveries?status=pending&order=date.asc'),
+    queryKey: ['deliveries', status, order, limit],
+    queryFn: async () =>
+      api
+        .get(`/deliveries?status=${status}&order=${order}&limit=${limit}`)
+        .then((r: any) => r.data),
   });
 }
-
-type HistoryItemUI = components['schemas']['HistoryItem'];
-type HistoryRespUI = { ok: boolean; data: { items: HistoryItemUI[] }; correlationId?: string };
 
 export function useHistory(limit = 10) {
   return useQuery({
     queryKey: ['history', limit],
-    queryFn: () => api.get<HistoryRespUI>(`/api/history?limit=${limit}`),
+    queryFn: async () => api.get(`/history?limit=${limit}`).then((r: any) => r.data),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useCompleteProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, completedAt }: { id: number; completedAt: string }) =>
+      api.post(`/projects/${id}/complete`, { completedAt }).then((r: any) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+    },
+  });
+}
+
+export function useRevertComplete() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: number }) =>
+      api.post(`/projects/${id}/revert-complete`, {}).then((r: any) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+    },
   });
 }
 
 export function useUndoMutation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (path: string) => {
-      // inverse.path をそのままPOST（payloadがあれば第2引数に渡す設計にも対応可能）
-      return api.post<{ ok: boolean; data?: { reverted?: boolean; message?: string } }>(
-        path,
-        undefined,
-      );
-    },
+    mutationFn: (inverse: { method: string; path: string; payload?: any }) =>
+      callInverse(inverse).then((r: any) => r.data),
     onSuccess: () => {
-      // 履歴と在庫/納品リストの再取得
-      qc.invalidateQueries({ queryKey: ['history'] });
       qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
     },
   });
 }
 
-type CompleteResp =
-  paths['/projects/{id}/complete']['post']['responses']['200']['content']['application/json'];
-
-export function useCompleteProject() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (projectId: number) => {
-      return api.post<CompleteResp>(
-        `/projects/${projectId}/complete`,
-        {
-          // DB=UTC, UI=JST の原則。サーバはUTCで受け取る。 :contentReference[oaicite:6]{index=6}
-          completedAt: new Date().toISOString(),
-        },
-        {
-          'Content-Type': 'application/json',
-        },
-      );
-    },
-    onSuccess: () => {
-      // 完了→在庫・納品・履歴に影響するため、関係キャッシュを刷新
-      qc.invalidateQueries({ queryKey: ['deliveries'] });
-      qc.invalidateQueries({ queryKey: ['history'] });
-      qc.invalidateQueries({ queryKey: ['tasks'] }); // 後続で実装
-    },
-  });
-}
-
-type EstimatesListResponse = components['schemas']['EstimatesListResponse'];
-
-export function useEstimates(params: { from?: string; to?: string; limit?: number } = {}) {
-  const search = new URLSearchParams();
-  if (params.from) search.set('from', params.from);
-  if (params.to) search.set('to', params.to);
-  if (typeof params.limit === 'number') search.set('limit', String(params.limit));
-  const qs = search.toString();
-
+export function useMaterials(
+  order: 'name.asc' | 'name.desc' | 'qty.asc' | 'qty.desc' = 'name.asc',
+  limit = 200,
+) {
   return useQuery({
-    queryKey: ['estimates', qs],
-    queryFn: () => api.get<EstimatesListResponse>(`/api/estimates${qs ? `?${qs}` : ''}`),
+    queryKey: ['materials', order, limit],
+    queryFn: async () => api.get(`/materials?order=${order}&limit=${limit}`).then((r) => r.data),
   });
 }
 
-// --- 見積の新規作成（電話受領→予定登録） ---
-type EstimateCreateRequest = components['schemas']['EstimateCreateRequest'];
-type EstimateCreateResp =
-  paths['/estimates']['post']['responses']['200']['content']['application/json'];
+export function useLowMaterials() {
+  return useQuery({
+    queryKey: ['materials', 'low'],
+    queryFn: async () => api.get(`/materials/low`).then((r) => r.data),
+    refetchInterval: 60_000,
+  });
+}
+
+// ---- Customers
+export function useCustomerSearch(q: string, limit = 20) {
+  return useQuery({
+    queryKey: ['customers', 'search', q, limit],
+    enabled: q.trim().length > 0,
+    queryFn: async () =>
+      api.get(`/customers/search?q=${encodeURIComponent(q)}&limit=${limit}`).then((r) => r.data),
+  });
+}
+
+// ---- Estimates
+export function useEstimates(fromISO?: string, limit = 10) {
+  const qs = new URLSearchParams();
+  if (fromISO) qs.set('from', fromISO);
+  qs.set('limit', String(limit));
+  return useQuery({
+    queryKey: ['estimates', fromISO ?? '', limit],
+    queryFn: async () => api.get(`/estimates?${qs.toString()}`).then((r) => r.data),
+    refetchInterval: 60_000,
+  });
+}
+
 export function useCreateEstimate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: EstimateCreateRequest) =>
-      api.post<EstimateCreateResp>('/api/estimates', payload),
+    mutationFn: (payload: any) => api.post(`/estimates`, payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['estimates'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
     },
   });
 }
 
-// --- 見積の成立/不成立の確定 ---
-type EstimateCompleteRequest = components['schemas']['EstimateCompleteRequest'];
-type EstimateCompleteResp =
-  paths['/estimates/{id}/complete']['post']['responses']['200']['content']['application/json'];
-export function useCompleteEstimate(id: number) {
+export function useCompleteEstimate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: EstimateCompleteRequest) =>
-      api.post<EstimateCompleteResp>(`/api/estimates/${id}/complete`, payload),
+    mutationFn: ({
+      id,
+      accepted,
+      priceCents,
+      projectTitle,
+      dueOn,
+    }: {
+      id: number;
+      accepted: boolean;
+      priceCents?: number;
+      projectTitle?: string;
+      dueOn?: string;
+    }) =>
+      api
+        .post(`/estimates/${id}/complete`, { accepted, priceCents, projectTitle, dueOn })
+        .then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['estimates'] });
-      // 成立→作業生成の可能性があるので、タスクや納品の再フェッチも必要に応じて：
-      qc.invalidateQueries({ queryKey: ['tasks'] });
-      qc.invalidateQueries({ queryKey: ['deliveries', 'pending'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
     },
   });
 }
