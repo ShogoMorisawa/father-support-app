@@ -22,6 +22,7 @@ tags:
   - name: Customers
   - name: History
   - name: Estimates
+  - name: Materials
 
 components:
   securitySchemes: {}
@@ -276,6 +277,63 @@ components:
           type: array
           items: { $ref: '#/components/schemas/EstimateItem' }
       required: [accepted]
+    # 在庫の基本単位（数量は DECIMAL(12,3) 想定 → multipleOf 0.001 で表現）
+    Material:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        unit:
+          type: string
+          nullable: true
+          description: 例) 枚, 本, m²
+        currentQty:
+          type: number
+          multipleOf: 0.001
+          description: 現在数量（DECIMAL(12,3)）
+        thresholdQty:
+          type: number
+          multipleOf: 0.001
+          description: 閾値（この値を下回ると低在庫）
+      required: [id, name, currentQty, thresholdQty]
+    MaterialsListResponse:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Material' }
+          required: [items]
+        correlationId: { type: string }
+      required: [ok, data]
+    LowStockItem:
+      type: object
+      properties:
+        materialId: { type: integer }
+        name: { type: string }
+        currentQty:
+          type: number
+          multipleOf: 0.001
+        thresholdQty:
+          type: number
+          multipleOf: 0.001
+      required: [materialId, name, currentQty, thresholdQty]
+    LowStockListResponse:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/LowStockItem' }
+          required: [items]
+        correlationId: { type: string }
+      required: [ok, data]
 paths:
   /projects/{id}/complete:
     post:
@@ -569,3 +627,45 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
+  # 在庫一覧（将来の検索/並び替えに拡張余地を残して最小）
+  /materials:
+    get:
+      tags: [Materials]
+      summary: 資材の在庫一覧を取得
+      parameters:
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [name.asc, name.desc]
+            default: name.asc
+        - name: onlyLow
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: true の場合は低在庫のみ返す
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaterialsListResponse' }
+  # 低在庫だけの軽量エンドポイント（ホームのバッジ/クイックビュー用）
+  /materials/low:
+    get:
+      tags: [Materials]
+      summary: 低在庫の資材一覧を取得
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LowStockListResponse' }

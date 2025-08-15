@@ -490,6 +490,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 資材の在庫一覧を取得 */
+        get: {
+            parameters: {
+                query?: {
+                    order?: "name.asc" | "name.desc";
+                    /** @description true の場合は低在庫のみ返す */
+                    onlyLow?: boolean;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MaterialsListResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/materials/low": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 低在庫の資材一覧を取得 */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LowStockListResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -681,6 +760,38 @@ export interface components {
             accepted: boolean;
             priceCents?: number | null;
             items?: components["schemas"]["EstimateItem"][];
+        };
+        Material: {
+            id: number;
+            name: string;
+            /** @description 例) 枚, 本, m² */
+            unit?: string | null;
+            /** @description 現在数量（DECIMAL(12,3)） */
+            currentQty: number;
+            /** @description 閾値（この値を下回ると低在庫） */
+            thresholdQty: number;
+        };
+        MaterialsListResponse: {
+            /** @constant */
+            ok: true;
+            data: {
+                items: components["schemas"]["Material"][];
+            };
+            correlationId?: string;
+        };
+        LowStockItem: {
+            materialId: number;
+            name: string;
+            currentQty: number;
+            thresholdQty: number;
+        };
+        LowStockListResponse: {
+            /** @constant */
+            ok: true;
+            data: {
+                items: components["schemas"]["LowStockItem"][];
+            };
+            correlationId?: string;
         };
     };
     responses: never;
