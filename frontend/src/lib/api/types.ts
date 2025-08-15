@@ -321,6 +321,186 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 顧客一覧（簡易） */
+        get: {
+            parameters: {
+                query?: {
+                    order?: "name.asc" | "name.desc" | "created.desc";
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomersListResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** 顧客を登録（Idempotency必須） */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CustomerUpsertRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok: boolean;
+                            data: {
+                                id?: number;
+                            };
+                        };
+                    };
+                };
+                /** @description Idempotencyキーなし 等 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 不正な入力 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 顧客詳細（統計付き） */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerDetailResponse"];
+                    };
+                };
+                /** @description 見つからない */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 顧客を更新（Idempotency必須） */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CustomerUpsertRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerDetailResponse"];
+                    };
+                };
+                /** @description Idempotencyキーなし 等 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 見つからない */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 不正な入力 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        trace?: never;
+    };
     "/customers/search": {
         parameters: {
             query?: never;
@@ -761,6 +941,27 @@ export interface components {
             nameKana?: string | null;
             phone?: string | null;
             address?: string | null;
+            createdAt?: string | null;
+        };
+        CustomerUpsertRequest: {
+            name: string;
+            nameKana?: string | null;
+            phone?: string | null;
+            address?: string | null;
+        };
+        CustomerDetailResponse: {
+            ok: boolean;
+            data: {
+                customer?: components["schemas"]["Customer"];
+                stats?: {
+                    estimatesCount?: number;
+                    projectsCount?: number;
+                    activeProjectsCount?: number;
+                    completedProjectsCount?: number;
+                    deliveriesPendingCount?: number;
+                };
+            };
+            correlationId?: string;
         };
         CustomersListResponse: {
             ok: boolean;

@@ -20,6 +20,9 @@ tags:
   - name: Deliveries
   - name: Photos
   - name: Customers
+    description: '顧客検索'
+  - name: CustomersLedger
+    description: '顧客台帳（一覧・詳細・登録・更新）'
   - name: History
   - name: Estimates
   - name: Materials
@@ -52,7 +55,36 @@ components:
         nameKana: { type: string, nullable: true }
         phone: { type: string, nullable: true }
         address: { type: string, nullable: true }
+        createdAt: { type: string, nullable: true }
       required: [id, name]
+
+    CustomerUpsertRequest:
+      type: object
+      properties:
+        name: { type: string }
+        nameKana: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+      required: [name]
+
+    CustomerDetailResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data:
+          type: object
+          properties:
+            customer: { $ref: '#/components/schemas/Customer' }
+            stats:
+              type: object
+              properties:
+                estimatesCount: { type: integer }
+                projectsCount: { type: integer }
+                activeProjectsCount: { type: integer }
+                completedProjectsCount: { type: integer }
+                deliveriesPendingCount: { type: integer }
+        correlationId: { type: string }
+      required: [ok, data]
 
     CustomersListResponse:
       type: object
@@ -592,6 +624,93 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiOk' }
+  /customers:
+    get:
+      tags: [CustomersLedger]
+      summary: '顧客一覧（簡易）'
+      parameters:
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum: [name.asc, name.desc, created.desc]
+            default: name.asc
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomersListResponse' }
+    post:
+      tags: [CustomersLedger]
+      summary: '顧客を登録（Idempotency必須）'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerUpsertRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                required: [ok, data]
+        '400': { description: 'Idempotencyキーなし 等' }
+        '422': { description: '不正な入力' }
+
+  /customers/{id}:
+    get:
+      tags: [CustomersLedger]
+      summary: '顧客詳細（統計付き）'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerDetailResponse' }
+        '404': { description: '見つからない' }
+    patch:
+      tags: [CustomersLedger]
+      summary: '顧客を更新（Idempotency必須）'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerUpsertRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerDetailResponse' }
+        '400': { description: 'Idempotencyキーなし 等' }
+        '404': { description: '見つからない' }
+        '422': { description: '不正な入力' }
+
   /customers/search:
     get:
       tags: [Customers]

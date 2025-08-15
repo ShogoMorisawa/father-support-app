@@ -32,6 +32,7 @@ Rails.application.routes.draw do
     get "materials/low", to: "materials#low"
 
     get "customers/search", to: "customers#search"
+    resources :customers, only: [:index, :show, :create, :update]
 
     resources :tasks, only: [ :index ]
 

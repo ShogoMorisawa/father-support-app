@@ -120,6 +120,46 @@ export function useCustomerSearch(q: string, limit = 20) {
   });
 }
 
+export function useCustomers(
+  order: 'name.asc' | 'name.desc' | 'created.desc' = 'name.asc',
+  limit = 200,
+) {
+  return useQuery({
+    queryKey: ['customers', 'index', order, limit],
+    queryFn: async () => api.get(`/customers?order=${order}&limit=${limit}`).then((r) => r.data),
+  });
+}
+
+export function useCustomer(id: number) {
+  return useQuery({
+    queryKey: ['customers', id],
+    queryFn: async () => api.get(`/customers/${id}`).then((r) => r.data),
+    enabled: !!id,
+  });
+}
+
+export function useCreateCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: any) => api.post(`/customers`, payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customers', 'index'] });
+      qc.invalidateQueries({ queryKey: ['customers', 'search'] });
+    },
+  });
+}
+
+export function useUpdateCustomer(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: any) => api.patch(`/customers/${id}`, payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customers', id] });
+      qc.invalidateQueries({ queryKey: ['customers', 'index'] });
+    },
+  });
+}
+
 // ---- Estimates
 export function useEstimates(fromISO?: string, limit = 10) {
   const qs = new URLSearchParams();
