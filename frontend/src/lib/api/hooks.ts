@@ -44,6 +44,7 @@ export function useRevertComplete() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['deliveries'] });
       qc.invalidateQueries({ queryKey: ['history'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 }
@@ -56,6 +57,7 @@ export function useUndoMutation() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['deliveries'] });
       qc.invalidateQueries({ queryKey: ['history'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 }
@@ -135,5 +137,13 @@ export function useCompleteEstimate() {
       qc.invalidateQueries({ queryKey: ['history'] });
       qc.invalidateQueries({ queryKey: ['deliveries'] });
     },
+  });
+}
+
+// ---- Tasks
+export function useTasks(order: 'due.asc' | 'due.desc' = 'due.asc', limit = 200) {
+  return useQuery({
+    queryKey: ['tasks', order, limit],
+    queryFn: async () => api.get(`/tasks?order=${order}&limit=${limit}`).then((r) => r.data),
   });
 }
