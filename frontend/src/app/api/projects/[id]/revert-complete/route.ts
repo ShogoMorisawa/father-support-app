@@ -1,4 +1,12 @@
-import { bootstrapMockState, db, getIdem, nextSeq, setIdem } from '@/app/api/_mock/db';
+import {
+  adjustMaterialsForProject,
+  bootstrapMockState,
+  db,
+  getIdem,
+  nextSeq,
+  setIdem,
+  ensureMaterialsSeed,
+} from '@/app/api/_mock/db';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
@@ -6,6 +14,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   const { id } = await context.params;
   // ← まず状態を自己修復
   bootstrapMockState();
+  ensureMaterialsSeed();
   const projectId = Number(id);
   const key = req.headers.get('x-idempotency-key');
   const path = `/api/projects/${projectId}/revert-complete`;
@@ -70,6 +79,14 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   };
   (db as any).history = (db as any).history ?? [];
   (db as any).history.unshift(hist);
+
+  // 在庫を復元（tasks.items の qty を合算）。Idempotencyヒット時はこのコードに来ないため多重復元されない。
+  try {
+    const pid = Number(id);
+    adjustMaterialsForProject(pid, 1);
+  } catch {
+    // モックのため黙殺（本実装ではログ）
+  }
 
   const res = {
     ok: true,

@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 import DeliveriesCard from './_components/DeliveriesCard';
 import EstimatesCard from './_components/EstimatesCard';
+import InventoryQuickView from './_components/InventoryQuickView';
 
 export default function Page() {
   // 動作確認用に軽いquery（あとで消してOK）
@@ -25,7 +26,12 @@ export default function Page() {
 
   return (
     <main className="p-4 mx-auto max-w-3xl space-y-4">
-      <h1 className="text-2xl font-semibold">ホーム</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">ホーム</h1>
+        {/* 在庫クイックビューアイコン */}
+        <InventoryQuickView />
+      </div>
+
       {/* v1.2追加：直近3件・日付昇順の「納品予定」カード */}
       <div className="grid gap-3 sm:grid-cols-2">
         <DeliveriesCard />

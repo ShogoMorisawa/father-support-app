@@ -8,8 +8,14 @@ export type Task = {
   dueOn: string; // ISO
   address?: string;
   kind?: string; // 例: "障子"
-  material?: string; // 例: "かがやき"
-  quantity?: number; // 例: 3
+  material?: string; // 例: "かがやき" (後方互換性のため残す)
+  quantity?: number; // 例: 3 (後方互換性のため残す)
+  items?: Array<{
+    materialId?: number | null;
+    materialName: string;
+    qtyUsed?: number; // 実際に使用した数量
+    qtyPlanned?: number; // 計画数量
+  }>;
 };
 
 export type Delivery = {
@@ -52,6 +58,14 @@ export type Estimate = {
   projectId?: number | null;
 };
 
+export type Material = {
+  id: number;
+  name: string;
+  unit?: string | null;
+  currentQty: number;
+  thresholdQty: number;
+};
+
 // ---- グローバル固定のモックDB（HMRでも状態維持） ----
 declare global {
   var __fsapp_db__: any | undefined;
@@ -71,6 +85,14 @@ if (!g.__fsapp_db__) {
         kind: '障子',
         material: 'かがやき',
         quantity: 4,
+        items: [
+          {
+            materialId: null,
+            materialName: '障子紙 かがやき',
+            qtyUsed: 4,
+            qtyPlanned: 4,
+          },
+        ],
       },
       {
         taskId: 902,
@@ -82,6 +104,14 @@ if (!g.__fsapp_db__) {
         kind: '網戸',
         material: 'グラスファイバー',
         quantity: 3,
+        items: [
+          {
+            materialId: null,
+            materialName: '網戸ネット 黒 24メッシュ',
+            qtyUsed: 3,
+            qtyPlanned: 3,
+          },
+        ],
       },
       {
         taskId: 903,
@@ -93,10 +123,19 @@ if (!g.__fsapp_db__) {
         kind: '襖',
         material: '雲竜紙',
         quantity: 2,
+        items: [
+          {
+            materialId: null,
+            materialName: '襖紙（無地）',
+            qtyUsed: 2,
+            qtyPlanned: 2,
+          },
+        ],
       },
     ],
     deliveries: <Delivery[]>[
       {
+        id: 1,
         taskId: 1001,
         projectId: 501,
         customerName: '山田 太郎',
@@ -105,6 +144,7 @@ if (!g.__fsapp_db__) {
         title: '障子4枚 納品',
       },
       {
+        id: 2,
         taskId: 1002,
         projectId: 502,
         customerName: '佐藤 花子',
@@ -165,6 +205,13 @@ if (!g.__fsapp_db__) {
         items: [],
         projectId: null,
       },
+    ],
+    materials: <Material[]>[
+      { id: 1, name: '障子紙（標準）', unit: '枚', currentQty: 50.0, thresholdQty: 10.0 },
+      { id: 2, name: '障子紙（強化）', unit: '枚', currentQty: 4.0, thresholdQty: 8.0 },
+      { id: 3, name: '網戸ネット 黒 24メッシュ', unit: '本', currentQty: 12.0, thresholdQty: 3.0 },
+      { id: 4, name: '襖紙（無地）', unit: '枚', currentQty: 30.0, thresholdQty: 6.0 },
+      { id: 5, name: '木枠（予備）', unit: '本', currentQty: 5.0, thresholdQty: 2.0 },
     ],
   };
 }
@@ -347,7 +394,7 @@ export function bootstrapMockState(): void {
   }
 
   const todayJST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date()); // "YYYY-MM-DD"
-  anydb._seq = anydb._seq ?? { history: 1, deliveries: 1 };
+  anydb._seq = anydb._seq ?? { history: 1, deliveries: 1, estimates: 1 };
 
   const deliveries: Delivery[] = anydb.deliveries;
   const hasDeliveryFor = new Map<number, boolean>();
@@ -375,36 +422,32 @@ export function bootstrapMockState(): void {
         return jstTomorrow.toISOString();
       })();
 
-      // 既存と同一（日付×案件×タイトル）なら追加しない（重複防止）
+      // 同一（日付×案件×タイトル）の重複は作らない
       const exists = deliveries.some(
-        (x: any) => x.projectId === t.projectId && x.title === t.title && x.date === pickDateIso,
+        (x) => x.projectId === t.projectId && x.title === t.title && x.date === pickDateIso,
       );
-      if (exists) {
-        continue;
+      if (!exists) {
+        ensureMonotonicSeqFor(deliveries as any[]);
+        const d: Delivery = {
+          taskId: t.taskId,
+          id: anydb._seq.deliveries++,
+          projectId: t.projectId,
+          customerName: t.customerName,
+          date: pickDateIso,
+          status: 'pending',
+          title: t.title,
+        };
+        deliveries.push(d);
+        hasDeliveryFor.set(t.projectId, true);
+        // ステータスを「納品予定」に寄せる
+        const p = projById.get(t.projectId);
+        if (p && p.status !== 'completed') p.status = 'delivery_scheduled';
       }
-
-      // 採番は常に既存の最大ID以上から
-      ensureMonotonicSeqFor(deliveries as any[]);
-
-      const d: Delivery = {
-        taskId: t.taskId,
-        id: anydb._seq.deliveries++,
-        projectId: t.projectId,
-        customerName: t.customerName,
-        date: pickDateIso,
-        status: 'pending',
-        title: t.title,
-      };
-      deliveries.push(d);
-      hasDeliveryFor.set(t.projectId, true);
-      // ステータスを「納品予定」に寄せる
-      const p = projById.get(t.projectId);
-      if (p && p.status !== 'completed') p.status = 'delivery_scheduled';
     }
   }
 
   // 履歴IDのユニーク化とシーケンス調整
-  anydb._seq = anydb._seq ?? { history: 1, deliveries: 1 };
+  anydb._seq = anydb._seq ?? { history: 1, deliveries: 1, estimates: 1 };
   const histArr: any[] = anydb.history;
   const maxId = histArr.reduce((m, ev) => Math.max(m, Number(ev?.id) || 0), 0);
   if (anydb._seq.history <= maxId) anydb._seq.history = maxId + 1;
@@ -418,4 +461,76 @@ export function bootstrapMockState(): void {
     }
     seen.add(id);
   }
+}
+
+// ---- Materials seed & helpers ----
+export function ensureMaterialsSeed() {
+  if (!db.materials) db.materials = [];
+  if (db.materials.length === 0) {
+    const seed = [
+      { id: nextSeq(), name: '障子紙（標準）', unit: '枚', currentQty: 50.0, thresholdQty: 10.0 },
+      { id: nextSeq(), name: '障子紙（強化）', unit: '枚', currentQty: 20.0, thresholdQty: 8.0 },
+      {
+        id: nextSeq(),
+        name: '網戸ネット 黒 24メッシュ',
+        unit: '本',
+        currentQty: 12.0,
+        thresholdQty: 3.0,
+      },
+      { id: nextSeq(), name: '襖紙（無地）', unit: '枚', currentQty: 30.0, thresholdQty: 6.0 },
+      { id: nextSeq(), name: '木枠（予備）', unit: '本', currentQty: 5.0, thresholdQty: 2.0 },
+    ];
+    db.materials.push(...seed);
+    // 既存の ensureMonotonicSeqFor がある前提（なければ上のほうに実装済みのはず）
+    ensureMonotonicSeqFor(db.materials);
+  }
+}
+
+export function isLowStock(m: any): boolean {
+  const cur = Number(m?.currentQty ?? 0);
+  const th = Number(m?.thresholdQty ?? 0);
+  return cur < th;
+}
+
+// tasks.items から使用量を集計し、在庫を増減
+// sign=-1: 完了で減算 ／ sign=+1: 元に戻すで復元
+export function adjustMaterialsForProject(projectId: number, sign: -1 | 1) {
+  if (!db.tasks) return [];
+  ensureMaterialsSeed();
+  const tasks = db.tasks.filter((t: any) => t.projectId === projectId);
+  const adj: Array<{ materialId?: number | null; materialName?: string; qty: number }> = [];
+
+  for (const t of tasks) {
+    // 新しいitems配列から使用量を取得
+    const items = Array.isArray(t.items) ? t.items : [];
+    for (const it of items) {
+      const qty = Number(it?.qtyUsed ?? it?.qtyPlanned ?? 0);
+      if (!qty) continue;
+      adj.push({ materialId: it.materialId ?? null, materialName: it.materialName, qty });
+    }
+
+    // 従来のmaterial/quantityフィールドからも使用量を取得（後方互換性）
+    if (t.material && t.quantity && !items.length) {
+      const qty = Number(t.quantity);
+      if (qty > 0) {
+        adj.push({ materialId: null, materialName: t.material, qty });
+      }
+    }
+  }
+
+  // 反映（materialId優先 → name一致）
+  for (const it of adj) {
+    let m: any | undefined;
+    if (it.materialId != null) {
+      m = db.materials.find((x: any) => x.id === it.materialId);
+    }
+    if (!m && it.materialName) {
+      m = db.materials.find((x: any) => x.name === it.materialName);
+    }
+    if (!m) continue;
+    const next = Number(m.currentQty ?? 0) + sign * Number(it.qty);
+    // DECIMAL(12,3)相当の丸め
+    m.currentQty = Math.max(0, Math.round(next * 1000) / 1000);
+  }
+  return adj;
 }

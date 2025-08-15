@@ -27,16 +27,13 @@ export default function DeliveriesCard() {
         <p className="text-sm text-gray-500">直近の納品予定はありません。</p>
       ) : (
         <ul className="space-y-2">
-          {items.map((d) => {
+          {items.slice(0, 3).map((d, index) => {
             const ts = new Date(d.date).getTime();
-            const key = `d-${(d as any).id ?? 'x'}-${(d as any).projectId ?? 'p'}-${
-              Number.isFinite(ts) ? ts : Math.random()
-            }`;
+            // モックDBの構造に合わせてキーを生成
+            const key = `delivery-${d.taskId || d.projectId || index}-${ts}`;
             return (
               <li key={key} className="text-sm">
-                <div className="font-medium">
-                  {(d as any).customerName ?? (d as any).title ?? '納品'}
-                </div>
+                <div className="font-medium">{d.customerName || '顧客名なし'}</div>
                 <div className="text-gray-600">
                   {new Date(d.date).toLocaleString('ja-JP', {
                     timeZone: 'Asia/Tokyo',
@@ -44,7 +41,7 @@ export default function DeliveriesCard() {
                     day: 'numeric',
                   })}
                   {' / '}
-                  {(d as any).title ?? ''}
+                  {d.title || '納品'}
                 </div>
               </li>
             );
