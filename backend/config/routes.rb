@@ -31,5 +31,7 @@ Rails.application.routes.draw do
     get "materials/low", to: "materials#low"
 
     get "customers/search", to: "customers#search"
+
+    resources :tasks, only: [ :index ]
   end
 end
