@@ -7,4 +7,20 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "posts#index"
+  namespace :api do
+    resource :health, only: [:show]
+
+    resources :projects, only: [] do
+      # /api/projects/:project_id/complete
+      post :complete, to: "projects/completions#create"
+      # /api/projects/:project_id/revert-complete
+      post "revert-complete", to: "projects/completions#revert"
+    end
+
+    # /api/deliveries?status=pending&order=date.asc&limit=200
+    resources :deliveries, only: [:index]
+
+    # /api/history  … 直近の履歴（監査ログ）
+    get "history", to: "histories#index"
+  end
 end
