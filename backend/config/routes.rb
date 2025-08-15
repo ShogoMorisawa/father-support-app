@@ -33,5 +33,7 @@ Rails.application.routes.draw do
     get "customers/search", to: "customers#search"
 
     resources :tasks, only: [ :index ]
+
+    post "materials/:material_id/receive", to: "materials/receives#create"
   end
 end
