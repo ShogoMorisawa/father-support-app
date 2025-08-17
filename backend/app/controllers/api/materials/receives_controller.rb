@@ -2,7 +2,7 @@ module Api
     module Materials
       class ReceivesController < Api::BaseController
         include RequireIdempotency
-  
+
         def create
           qty  = params[:quantity]
           note = params[:note]
@@ -23,5 +23,4 @@ module Api
         end
       end
     end
-  end
-  
+end

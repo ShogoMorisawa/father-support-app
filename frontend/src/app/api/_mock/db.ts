@@ -10,6 +10,7 @@ export type Task = {
   kind?: string; // 例: "障子"
   material?: string; // 例: "かがやき" (後方互換性のため残す)
   quantity?: number; // 例: 3 (後方互換性のため残す)
+  status: 'todo' | 'doing' | 'done'; // バックエンドに合わせて追加
   items?: Array<{
     materialId?: number | null;
     materialName: string;
@@ -85,6 +86,7 @@ if (!g.__fsapp_db__) {
         kind: '障子',
         material: 'かがやき',
         quantity: 4,
+        status: 'todo',
         items: [
           {
             materialId: null,
@@ -104,6 +106,7 @@ if (!g.__fsapp_db__) {
         kind: '網戸',
         material: 'グラスファイバー',
         quantity: 3,
+        status: 'todo',
         items: [
           {
             materialId: null,
@@ -123,6 +126,7 @@ if (!g.__fsapp_db__) {
         kind: '襖',
         material: '雲竜紙',
         quantity: 2,
+        status: 'todo',
         items: [
           {
             materialId: null,

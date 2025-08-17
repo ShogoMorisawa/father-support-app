@@ -1,13 +1,11 @@
 'use client';
-import DeliveriesCard from './_components/DeliveriesCard';
-import LowStockCard from './_components/LowStockCard';
+import Dashboard from './_components/Dashboard';
 
 export default function HomePage() {
   return (
-    <main className="max-w-3xl mx-auto p-4 space-y-4">
+    <main className="max-w-5xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">ホーム</h1>
-      <DeliveriesCard />
-      <LowStockCard />
+      <Dashboard />
     </main>
   );
 }

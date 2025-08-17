@@ -7,4 +7,3 @@ FactoryBot.define do
       due_on { Date.today }
     end
   end
-  

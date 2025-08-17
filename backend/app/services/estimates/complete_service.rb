@@ -29,21 +29,21 @@ module Estimates
             project = Project.create!(
               customer: customer,
               title: title,
-              status: "in_progress",
-              due_on: due_on || Date.current
+              status: "delivery_scheduled",
+              due_on: due_on
             )
-
+            # ❌ ここでダミータスクを自動生成していたのを削除
             # 見積アイテムを初期タスクの「計画」に引き継ぐ（在庫は動かさない）
-            task = Task.create!(project: project, title: "作業", status: "todo", due_on: due_on || Date.current)
-            est.estimate_items.find_each do |ei|
-              TaskMaterial.create!(
-                task: task,
-                material: (Material.find_by(id: ei.material_id) || Material.find_by(name: ei.material_name)),
-                material_name: ei.material_name,
-                qty_planned: ei.quantity,
-                qty_used: 0
-              )
-            end
+            # task = Task.create!(project: project, title: "作業", status: "todo", due_on: due_on || Date.current)
+            # est.estimate_items.find_each do |ei|
+            #   TaskMaterial.create!(
+            #     task: task,
+            #     material: (Material.find_by(id: ei.material_id) || Material.find_by(name: ei.material_name)),
+            #     material_name: ei.material_name,
+            #     qty_planned: ei.quantity,
+            #     qty_used: 0
+            #   )
+            # end
           end
 
           est.update!(

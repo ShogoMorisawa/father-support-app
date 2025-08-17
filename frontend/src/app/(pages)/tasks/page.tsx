@@ -1,14 +1,16 @@
 'use client';
 import Toast from '@/app/_components/Toast';
-import { useCompleteProject, useTasks } from '@/lib/api/hooks';
+import { useCompleteTask, useTasks } from '@/lib/api/hooks';
 import { useMemo, useState } from 'react';
 
 export default function TasksPage() {
   const { data, refetch } = useTasks('due.asc', 200);
-  const complete = useCompleteProject();
   const [toast, setToast] = useState<string | null>(null);
 
   const items: any[] = useMemo(() => data?.data?.items ?? [], [data]);
+
+  // 未完了のタスクのみフィルタリング
+  const pendingTasks = items.filter((t) => t.status !== 'done');
 
   return (
     <main className="max-w-4xl mx-auto p-4 space-y-4">
@@ -26,7 +28,7 @@ export default function TasksPage() {
             </tr>
           </thead>
           <tbody>
-            {items.map((t, idx) => {
+            {pendingTasks.map((t, idx) => {
               const key = `t-${t.id ?? 'x'}-${t.projectId ?? 'p'}-${t.dueOn ?? idx}`;
               return (
                 <tr key={key} className="border-t">
@@ -35,32 +37,24 @@ export default function TasksPage() {
                   <td className="px-3 py-2">{t.title}</td>
                   <td className="px-3 py-2">{t.address ?? '-'}</td>
                   <td className="px-3 py-2 text-center">
-                    <button
-                      className="rounded bg-black text-white px-3 py-1 disabled:opacity-50"
-                      disabled={!t.projectId || complete.isPending}
-                      onClick={async () => {
-                        try {
-                          await complete.mutateAsync({
-                            id: t.projectId,
-                            completedAt: new Date().toISOString(),
-                          });
-                          setToast('作業を完了しました。');
-                          refetch();
-                        } catch (e: any) {
-                          setToast('操作が競合しました。少し時間をおいて再試行してください');
-                        }
+                    <TaskCompleteButton
+                      taskId={t.id}
+                      onDone={() => {
+                        setToast('作業を完了しました。');
+                        refetch();
                       }}
-                    >
-                      完了
-                    </button>
+                      onError={() => {
+                        setToast('操作が競合しました。少し時間をおいて再試行してください');
+                      }}
+                    />
                   </td>
                 </tr>
               );
             })}
-            {items.length === 0 && (
+            {pendingTasks.length === 0 && (
               <tr>
                 <td className="px-3 py-6 text-center text-gray-500" colSpan={5}>
-                  作業はありません。
+                  未完了の作業はありません。
                 </td>
               </tr>
             )}
@@ -70,5 +64,34 @@ export default function TasksPage() {
 
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </main>
+  );
+}
+
+function TaskCompleteButton({
+  taskId,
+  onDone,
+  onError,
+}: {
+  taskId: number;
+  onDone: () => void;
+  onError: () => void;
+}) {
+  const complete = useCompleteTask(taskId);
+  return (
+    <button
+      className="rounded bg-black text-white px-3 py-1 disabled:opacity-50"
+      disabled={!taskId || complete.isPending}
+      onClick={async () => {
+        if (!taskId) return;
+        try {
+          await complete.mutateAsync();
+          onDone();
+        } catch {
+          onError();
+        }
+      }}
+    >
+      完了
+    </button>
   );
 }

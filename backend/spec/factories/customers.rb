@@ -6,4 +6,3 @@ FactoryBot.define do
       address { "大分県大分市…" }
     end
   end
-  

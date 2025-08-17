@@ -4,20 +4,23 @@ module Api
       def index
         order = params[:order].presence || "due.asc"
         rel = Task.includes(project: :customer)
-  
+          .joins(:project)
+          .where(status: %w[todo doing])
+          .where(projects: { status: %w[in_progress delivery_scheduled] })
+
         rel = case order
-              when "due.desc" then rel.order(Arel.sql("tasks.due_on DESC NULLS LAST"))
-              else                   rel.order(Arel.sql("tasks.due_on ASC NULLS LAST"))
-              end
-  
-        limit = [(params[:limit] || 200).to_i, 500].min
+        when "due.desc" then rel.order(Arel.sql("tasks.due_on DESC NULLS LAST"))
+        else                   rel.order(Arel.sql("tasks.due_on ASC NULLS LAST"))
+        end
+
+        limit = [ (params[:limit] || 200).to_i, 500 ].min
         items = rel.limit(limit).map { |t| serialize(t) }
-  
+
         render_ok(data: { items: items })
       end
-  
+
       private
-  
+
       def serialize(t)
         {
           id: t.id,
@@ -31,5 +34,4 @@ module Api
         }
       end
     end
-  end
-  
+end

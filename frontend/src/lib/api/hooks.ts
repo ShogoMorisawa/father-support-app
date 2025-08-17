@@ -3,19 +3,31 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, callInverse } from './client';
 
-export function useDeliveries(
-  params: { status?: 'pending' | 'all'; order?: 'date.asc' | 'date.desc'; limit?: number } = {},
-) {
-  const { status = 'pending', order = 'date.asc', limit = 3 } = params;
+// ---- Dashboard
+export function useDashboard(params?: {
+  date?: string;
+  estimatesLimit?: number;
+  tasksLimit?: number;
+  deliveriesLimit?: number;
+  historyLimit?: number;
+  lowLimit?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.date) qs.set('date', params.date);
+  if (params?.estimatesLimit) qs.set('estimatesLimit', String(params.estimatesLimit));
+  if (params?.tasksLimit) qs.set('tasksLimit', String(params.tasksLimit));
+  if (params?.deliveriesLimit) qs.set('deliveriesLimit', String(params.deliveriesLimit));
+  if (params?.historyLimit) qs.set('historyLimit', String(params.historyLimit));
+  if (params?.lowLimit) qs.set('lowLimit', String(params.lowLimit));
+  const key = ['dashboard', qs.toString()];
   return useQuery({
-    queryKey: ['deliveries', status, order, limit],
-    queryFn: async () =>
-      api
-        .get(`/deliveries?status=${status}&order=${order}&limit=${limit}`)
-        .then((r: any) => r.data),
+    queryKey: key,
+    queryFn: async () => api.get(`/dashboard?${qs.toString()}`).then((r) => r.data),
+    refetchInterval: 60_000,
   });
 }
 
+// ---- History
 export function useHistory(limit = 10) {
   return useQuery({
     queryKey: ['history', limit],
@@ -24,59 +36,47 @@ export function useHistory(limit = 10) {
   });
 }
 
-export function useCompleteProject() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, completedAt }: { id: number; completedAt: string }) =>
-      api.post(`/projects/${id}/complete`, { completedAt }).then((r: any) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['deliveries'] });
-      qc.invalidateQueries({ queryKey: ['history'] });
-    },
-  });
-}
-
-export function useRevertComplete() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id }: { id: number }) =>
-      api.post(`/projects/${id}/revert-complete`, {}).then((r: any) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['deliveries'] });
-      qc.invalidateQueries({ queryKey: ['history'] });
-      qc.invalidateQueries({ queryKey: ['tasks'] });
-    },
-  });
-}
-
-export function useUndoMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (inverse: { method: string; path: string; payload?: any }) =>
-      callInverse(inverse).then((r: any) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['deliveries'] });
-      qc.invalidateQueries({ queryKey: ['history'] });
-      qc.invalidateQueries({ queryKey: ['tasks'] });
-    },
-  });
-}
-
-export function useMaterials(
-  order: 'name.asc' | 'name.desc' | 'qty.asc' | 'qty.desc' = 'name.asc',
-  limit = 200,
-) {
+// ---- Deliveries
+export function useDeliveries(opts?: {
+  status?: 'pending' | 'all';
+  order?: 'date.asc' | 'date.desc';
+  limit?: number;
+}) {
+  const status = opts?.status ?? 'pending';
+  const order = opts?.order ?? 'date.asc';
+  const limit = opts?.limit ?? 200;
+  const qs = new URLSearchParams();
+  // 既定値でも「undefined」文字列は付けない
+  if (status) qs.set('status', status);
+  if (order) qs.set('order', order);
+  if (typeof limit === 'number') qs.set('limit', String(limit));
+  const qstr = qs.toString();
   return useQuery({
-    queryKey: ['materials', order, limit],
-    queryFn: async () => api.get(`/materials?order=${order}&limit=${limit}`).then((r) => r.data),
+    queryKey: ['deliveries', qstr],
+    queryFn: async () => api.get(`/deliveries?${qstr}`).then((r) => r.data),
   });
 }
 
-export function useLowMaterials() {
+export function useDeliveryDetail(id: number) {
   return useQuery({
-    queryKey: ['materials', 'low'],
-    queryFn: async () => api.get(`/materials/low`).then((r) => r.data),
-    refetchInterval: 60_000,
+    queryKey: ['delivery', id],
+    enabled: !!id,
+    queryFn: async () => api.get(`/deliveries/${id}`).then((r) => r.data),
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useTogglePrepared(deliveryId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { taskId: number; prepared: boolean }) =>
+      api.post(`/deliveries/${deliveryId}/check`, payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['delivery', deliveryId] });
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+    },
   });
 }
 
@@ -95,6 +95,125 @@ export function useBulkShiftDeliveries() {
       qc.invalidateQueries({ queryKey: ['deliveries'] });
       qc.invalidateQueries({ queryKey: ['history'] });
     },
+  });
+}
+
+export function useCompleteDelivery(deliveryId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post(`/deliveries/${deliveryId}/complete`, {}).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['delivery', deliveryId] });
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+    },
+  });
+}
+
+// ---- Tasks
+export function useTasks(order: 'due.asc' | 'due.desc' = 'due.asc', limit = 200) {
+  return useQuery({
+    queryKey: ['tasks', order, limit],
+    queryFn: async () => api.get(`/tasks?order=${order}&limit=${limit}`).then((r) => r.data),
+  });
+}
+
+export function useCompleteTask(taskId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post(`/tasks/${taskId}/complete`, {}).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries(); // 少し広めに無効化（在庫/履歴/ダッシュボード/納品詳細）
+    },
+  });
+}
+
+export function useRevertCompleteTask(taskId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post(`/tasks/${taskId}/revert-complete`, {}).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries();
+    },
+  });
+}
+
+export function useTaskBulkCreate(projectId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      deliveryOn: string;
+      items: {
+        title: string;
+        kind?: string | null;
+        materials?: {
+          materialId?: number | null;
+          materialName?: string | null;
+          qtyPlanned?: number | null;
+        }[];
+      }[];
+    }) => api.post(`/projects/${projectId}/tasks/bulk-create`, payload).then((r) => r.data),
+    onSuccess: () => {
+      // 影響範囲のみキャッシュ更新
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+    },
+  });
+}
+
+// ---- Projects
+export function useCompleteProject(projectId: number, options?: { completedAt?: string }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api
+        .post(
+          `/projects/${projectId}/complete`,
+          options?.completedAt ? { completedAt: options.completedAt } : {},
+        )
+        .then((r) => r.data),
+    onSuccess: () => {
+      // 影響範囲のみ無効化（過剰な全体無効化は避ける）
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+export function useRevertComplete() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: number }) =>
+      api.post(`/projects/${id}/revert-complete`, {}).then((r: any) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+// ---- Materials
+export function useMaterials(
+  order: 'name.asc' | 'name.desc' | 'qty.asc' | 'qty.desc' = 'name.asc',
+  limit = 200,
+) {
+  return useQuery({
+    queryKey: ['materials', order, limit],
+    queryFn: async () => api.get(`/materials?order=${order}&limit=${limit}`).then((r) => r.data),
+  });
+}
+
+export function useLowMaterials() {
+  return useQuery({
+    queryKey: ['materials', 'low'],
+    queryFn: async () => api.get(`/materials/low`).then((r) => r.data),
+    refetchInterval: 60_000,
   });
 }
 
@@ -210,10 +329,16 @@ export function useCompleteEstimate() {
   });
 }
 
-// ---- Tasks
-export function useTasks(order: 'due.asc' | 'due.desc' = 'due.asc', limit = 200) {
-  return useQuery({
-    queryKey: ['tasks', order, limit],
-    queryFn: async () => api.get(`/tasks?order=${order}&limit=${limit}`).then((r) => r.data),
+// ---- Utility
+export function useUndoMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (inverse: { method: string; path: string; payload?: any }) =>
+      callInverse(inverse).then((r: any) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
   });
 }

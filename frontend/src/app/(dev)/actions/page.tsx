@@ -7,7 +7,7 @@ import { useState } from 'react';
 export default function DevActions() {
   const [id, setId] = useState<number>(1);
   const [toast, setToast] = useState<string | null>(null);
-  const complete = useCompleteProject();
+  const complete = useCompleteProject(id);
   const router = useRouter();
 
   return (
@@ -22,10 +22,12 @@ export default function DevActions() {
           className="border rounded px-2 py-1 w-32"
         />
         <button
-          className="ml-2 rounded bg-black text-white px-3 py-1"
+          className="ml-2 rounded bg-black text-white px-3 py-1 disabled:opacity-50"
+          disabled={!(id > 0) || complete.isPending}
           onClick={async () => {
+            if (!(id > 0)) return;
             try {
-              const res = await complete.mutateAsync({ id, completedAt: new Date().toISOString() });
+              const res = await complete.mutateAsync();
               const low = res?.data?.lowStock ?? [];
               if (low.length > 0) {
                 setToast(`在庫が少なくなっています（${low.length}件）。在庫を見る`);

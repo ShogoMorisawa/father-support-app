@@ -4,7 +4,7 @@ RSpec.describe "Idempotency for Projects Complete", type: :request do
   it "同一キーなら2回目は結果リプレイされ、監査ログが増えない" do
     material = create(:material, name: "障子紙", current_qty: 10, threshold_qty: 0)
     project  = create(:project)
-    task     = create(:task, project: project)
+    task     = create(:task, project: project, status: "done", prepared_at: Time.current)
     create(:task_material, task: task, material: material, qty_used: 2)
 
     headers = { "CONTENT_TYPE" => "application/json", "X-Idempotency-Key" => "same-key" }

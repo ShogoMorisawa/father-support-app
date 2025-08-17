@@ -7,4 +7,3 @@ FactoryBot.define do
       qty_used { 4 }
     end
   end
-  

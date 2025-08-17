@@ -4,7 +4,7 @@ module Api
 
     def search
       q = params[:q].to_s.strip
-      limit = [(params[:limit] || 20).to_i, 100].min
+      limit = [ (params[:limit] || 20).to_i, 100 ].min
       rel = q.present? ? Customer.search_like(q) : Customer.all
       items = rel.order(:name).limit(limit).map { |c| serialize(c) }
       render_ok(data: { items: items })
@@ -15,11 +15,11 @@ module Api
       order = (params[:order] || "name.asc").to_s
       rel = Customer.all
       rel = case order
-            when "name.desc"   then rel.order(name: :desc)
-            when "created.desc" then rel.order(created_at: :desc)
-            else rel.order(name: :asc)
-            end
-      limit = [(params[:limit] || 200).to_i, 500].min
+      when "name.desc"   then rel.order(name: :desc)
+      when "created.desc" then rel.order(created_at: :desc)
+      else rel.order(name: :asc)
+      end
+      limit = [ (params[:limit] || 200).to_i, 500 ].min
       items = rel.limit(limit).map { |c| serialize(c) }
       render_ok(data: { items: items })
     end

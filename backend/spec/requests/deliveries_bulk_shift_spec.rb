@@ -27,7 +27,7 @@ RSpec.describe "Deliveries Bulk Shift", type: :request do
     expect(inv).to be_present
     expect(inv["path"]).to eq "/api/deliveries/bulk-shift"
     expect(inv["payload"]["days"]).to eq(-2)
-    expect(inv["payload"]["ids"]).to match_array([d1.id, d2.id])
+    expect(inv["payload"]["ids"]).to match_array([ d1.id, d2.id ])
 
     post inv["path"], params: inv["payload"].to_json, headers: headers.merge("X-Idempotency-Key" => "bulk-undo-1")
     expect(response).to have_http_status(:ok)

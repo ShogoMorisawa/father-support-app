@@ -931,6 +931,313 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ホーム用の集約情報を取得する */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description 基準日（YYYY-MM-DD, JST） */
+                    date?: string;
+                    estimatesLimit?: number;
+                    tasksLimit?: number;
+                    deliveriesLimit?: number;
+                    historyLimit?: number;
+                    lowLimit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DashboardResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/tasks/bulk-create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 複数タスクを一括作成し、プロジェクトの納品予定日を設定する（Idempotency必須） */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                    /** @description クライアントが操作単位で発番する任意のUUID。サーバが応答にも反映。 */
+                    "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TaskBulkCreateRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Idempotencyキーなし 等 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 見つからない */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 不正 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deliveries/{id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 納品前チェック：指定タスクの準備済みフラグを切り替える（Idempotency必須） */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                    /** @description クライアントが操作単位で発番する任意のUUID。サーバが応答にも反映。 */
+                    "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeliveryCheckRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Idempotencyキーなし 等 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 見つからない */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 不正 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** タスクを完了にして在庫を減算（Idempotency必須） */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                    /** @description クライアントが操作単位で発番する任意のUUID。サーバが応答にも反映。 */
+                    "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Idempotencyキーなし 等 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 見つからない */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 二重完了などの競合 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 不正 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{id}/revert-complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** タスク完了を元に戻す（在庫を戻す・Idempotency必須） */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                    /** @description クライアントが操作単位で発番する任意のUUID。サーバが応答にも反映。 */
+                    "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Idempotencyキーなし 等 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 見つからない */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 状態競合 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -967,6 +1274,51 @@ export interface components {
             ok: boolean;
             data: {
                 items?: components["schemas"]["Customer"][];
+            };
+            correlationId?: string;
+        };
+        DashboardResponse: {
+            ok: boolean;
+            data: {
+                /** @description JSTの対象日（YYYY-MM-DD） */
+                date?: string;
+                estimates?: {
+                    id?: number;
+                    scheduledAt?: string;
+                    status?: string;
+                    accepted?: boolean | null;
+                    customerName?: string | null;
+                }[];
+                tasks?: {
+                    id?: number;
+                    projectId?: number;
+                    title?: string;
+                    status?: string;
+                    dueOn?: string | null;
+                    customerName?: string | null;
+                }[];
+                deliveries?: {
+                    id?: number;
+                    projectId?: number;
+                    date?: string;
+                    status?: string;
+                    title?: string;
+                    customerName?: string | null;
+                }[];
+                lowStock?: {
+                    count?: number;
+                    items?: {
+                        materialId?: number;
+                        name?: string;
+                        /** Format: double */
+                        currentQty?: number;
+                        /** Format: double */
+                        thresholdQty?: number;
+                    }[];
+                };
+                history?: {
+                    items?: components["schemas"]["HistoryItem"][];
+                };
             };
             correlationId?: string;
         };
@@ -1245,6 +1597,26 @@ export interface components {
                 items: components["schemas"]["LowStockItem"][];
             };
             correlationId?: string;
+        };
+        TaskBulkCreateItem: {
+            /** @description 例: 障子 張替 3枚 */
+            title: string;
+            kind?: string | null;
+            materials?: {
+                materialId?: number | null;
+                materialName?: string | null;
+                /** Format: double */
+                qtyPlanned?: number | null;
+            }[];
+        };
+        TaskBulkCreateRequest: {
+            /** @description プロジェクトの納品予定日（YYYY-MM-DD, JST） */
+            deliveryOn: string;
+            items: components["schemas"]["TaskBulkCreateItem"][];
+        };
+        DeliveryCheckRequest: {
+            taskId: number;
+            prepared: boolean;
         };
     };
     responses: never;

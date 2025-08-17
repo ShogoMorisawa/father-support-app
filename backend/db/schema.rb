@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_15_000400) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_17_124625) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -143,6 +143,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_15_000400) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "prepared_at"
     t.index ["project_id", "due_on"], name: "index_tasks_on_project_id_and_due_on"
     t.index ["project_id"], name: "index_tasks_on_project_id"
     t.check_constraint "status::text = ANY (ARRAY['todo'::character varying, 'doing'::character varying, 'done'::character varying]::text[])", name: "chk_tasks_status"

@@ -5,7 +5,7 @@ RSpec.describe "Projects::Complete / Revert", type: :model do
     # 準備：顧客・案件・在庫・作業＋使用材料・納品予定
     material = create(:material, name: "障子紙（標準）", current_qty: 5, threshold_qty: 10)
     project  = create(:project, title: "B様 障子4枚", status: "in_progress", due_on: Date.today)
-    task     = create(:task, project: project, title: "作業", status: "todo")
+    task     = create(:task, project: project, title: "作業", status: "done", prepared_at: Time.current)
     create(:task_material, task: task, material: material, material_name: material.name, qty_planned: 4, qty_used: 4)
     Delivery.create!(project: project, date: Date.today + 1, status: "pending", title: "納品")
 

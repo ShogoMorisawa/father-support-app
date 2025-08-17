@@ -26,6 +26,9 @@ tags:
   - name: History
   - name: Estimates
   - name: Materials
+  - name: Dashboard
+    description: 'ホーム用の集約エンドポイント'
+  - name: Tasks
 
 components:
   securitySchemes: {}
@@ -96,6 +99,68 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/Customer' }
+        correlationId: { type: string }
+      required: [ok, data]
+
+    DashboardResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data:
+          type: object
+          properties:
+            date: { type: string, description: 'JSTの対象日（YYYY-MM-DD）' }
+            estimates:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  scheduledAt: { type: string }
+                  status: { type: string }
+                  accepted: { type: boolean, nullable: true }
+                  customerName: { type: string, nullable: true }
+            tasks:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  projectId: { type: integer }
+                  title: { type: string }
+                  status: { type: string }
+                  dueOn: { type: string, nullable: true }
+                  customerName: { type: string, nullable: true }
+            deliveries:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  projectId: { type: integer }
+                  date: { type: string }
+                  status: { type: string }
+                  title: { type: string }
+                  customerName: { type: string, nullable: true }
+            lowStock:
+              type: object
+              properties:
+                count: { type: integer }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      materialId: { type: integer }
+                      name: { type: string }
+                      currentQty: { type: number, format: double }
+                      thresholdQty: { type: number, format: double }
+            history:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/HistoryItem' }
         correlationId: { type: string }
       required: [ok, data]
 
@@ -461,6 +526,39 @@ components:
           required: [items]
         correlationId: { type: string }
       required: [ok, data]
+
+    TaskBulkCreateItem:
+      type: object
+      properties:
+        title: { type: string, description: '例: 障子 張替 3枚' }
+        kind: { type: string, nullable: true }
+        materials:
+          type: array
+          items:
+            type: object
+            properties:
+              materialId: { type: integer, nullable: true }
+              materialName: { type: string, nullable: true }
+              qtyPlanned: { type: number, format: double, nullable: true }
+      required: [title]
+
+    TaskBulkCreateRequest:
+      type: object
+      properties:
+        deliveryOn:
+          type: string
+          description: 'プロジェクトの納品予定日（YYYY-MM-DD, JST）'
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/TaskBulkCreateItem' }
+      required: [deliveryOn, items]
+
+    DeliveryCheckRequest:
+      type: object
+      properties:
+        taskId: { type: integer }
+        prepared: { type: boolean }
+      required: [taskId, prepared]
 paths:
   /projects/{id}/complete:
     post:
@@ -951,3 +1049,113 @@ paths:
           description: 在庫が存在しない
         '422':
           description: 不正な数量
+
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: 'ホーム用の集約情報を取得する'
+      parameters:
+        - in: query
+          name: date
+          schema: { type: string }
+          description: '基準日（YYYY-MM-DD, JST）'
+        - in: query
+          name: estimatesLimit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 3 }
+        - in: query
+          name: tasksLimit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 5 }
+        - in: query
+          name: deliveriesLimit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 3 }
+        - in: query
+          name: historyLimit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 3 }
+        - in: query
+          name: lowLimit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 3 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DashboardResponse' }
+
+  /projects/{id}/tasks/bulk-create:
+    post:
+      tags: [Tasks]
+      summary: '複数タスクを一括作成し、プロジェクトの納品予定日を設定する（Idempotency必須）'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskBulkCreateRequest' }
+      responses:
+        '200': { description: OK }
+        '400': { description: 'Idempotencyキーなし 等' }
+        '404': { description: '見つからない' }
+        '422': { description: '不正' }
+
+  /deliveries/{id}/check:
+    post:
+      tags: [Deliveries]
+      summary: '納品前チェック：指定タスクの準備済みフラグを切り替える（Idempotency必須）'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeliveryCheckRequest' }
+      responses:
+        '200': { description: OK }
+        '400': { description: 'Idempotencyキーなし 等' }
+        '404': { description: '見つからない' }
+        '422': { description: '不正' }
+
+  /tasks/{id}/complete:
+    post:
+      tags: [Tasks]
+      summary: 'タスクを完了にして在庫を減算（Idempotency必須）'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200': { description: OK }
+        '400': { description: 'Idempotencyキーなし 等' }
+        '404': { description: '見つからない' }
+        '409': { description: '二重完了などの競合' }
+        '422': { description: '不正' }
+
+  /tasks/{id}/revert-complete:
+    post:
+      tags: [Tasks]
+      summary: 'タスク完了を元に戻す（在庫を戻す・Idempotency必須）'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200': { description: OK }
+        '400': { description: 'Idempotencyキーなし 等' }
+        '404': { description: '見つからない' }
+        '409': { description: '状態競合' }

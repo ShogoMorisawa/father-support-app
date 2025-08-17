@@ -3,6 +3,7 @@ import axios, { InternalAxiosRequestConfig } from 'axios';
 const BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
 function stripApiPrefix(url: string) {
+  // バックエンドのAPIを使用するため、/apiプレフィックスを削除
   return url.replace(/^\/api(\/|$)/, '/');
 }
 
@@ -12,7 +13,7 @@ function genIdemKey() {
 }
 
 export const api = axios.create({
-  baseURL: BASE, // 例: http://localhost:3000/api
+  baseURL: BASE, // バックエンドのURL: http://localhost:3000
   headers: { 'Content-Type': 'application/json' },
   timeout: 20_000,
 });

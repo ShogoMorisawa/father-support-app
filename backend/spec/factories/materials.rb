@@ -6,4 +6,3 @@ FactoryBot.define do
       threshold_qty { 10 }
     end
   end
-  

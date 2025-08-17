@@ -1,83 +1,76 @@
 module Projects
-    class CompleteService
-      Result = Struct.new(:ok, :project, :low_stock, :error_code, :error_message, keyword_init: true)
+  class CompleteService
+    Result = Struct.new(:ok, :project, :error_code, :error_message, :low_stock, keyword_init: true)
 
-      def self.call(project_id:, completed_at: Time.current)
-        new(project_id: project_id, completed_at: completed_at).call
-      end
+    def self.call(project_id:)
+      new(project_id:).call
+    end
 
-      def initialize(project_id:, completed_at:)
-        @project_id = project_id.to_i
-        @completed_at = completed_at
-      end
+    def initialize(project_id:)
+      @project_id = project_id.to_i
+    end
 
-      def call
-        ActiveRecord::Base.transaction do
-          project = Project.lock.find(@project_id)
-          return Result.new(ok: false, error_code: "conflict", error_message: "すでに完了しています。") if project.completed?
+    def call
+      ActiveRecord::Base.transaction do
+        project = ::Project.lock.find(@project_id)
+        return conflict!("already_completed") if project.status == "completed"
 
-          # ステータス遷移
-          project.status = "completed"
-          project.save!
+        tasks = project.tasks.to_a
+        not_done      = tasks.select { |t| t.status != "done" }
+        not_prepared  = tasks.select { |t| t.prepared_at.nil? }
 
-          # 在庫を減算（task_materials.qty_used の合計）
-          low = adjust_materials!(project.id, sign: -1)
-
-          # 納品予定（pending）は削除
-          Delivery.where(project_id: project.id, status: "pending").delete_all
-
-          # 監査ログ（逆操作：revert-complete）
-          AuditLog.create!(
-            action:       "project.complete",
-            target_type:  "project",
-            target_id:    project.id,
-            summary:      "作業完了",
-            inverse:      { method: "POST", path: "/api/projects/#{project.id}/revert-complete", payload: {} },
-            correlation_id: nil,
-            actor:        nil
-          )
-
-          Result.new(ok: true, project: project, low_stock: low)
+        if not_done.any? || not_prepared.any?
+          msgs = []
+          msgs << "未完了の作業があります（#{not_done.map(&:title).join(' / ')}）" if not_done.any?
+          msgs << "準備未完了の作業があります（#{not_prepared.map(&:title).join(' / ')}）" if not_prepared.any?
+          return Result.new(ok: false, error_code: "precondition_failed", error_message: msgs.join("・"))
         end
-      rescue ActiveRecord::RecordNotFound
-        Result.new(ok: false, error_code: "not_found", error_message: "案件が見つかりません。")
-      rescue ActiveRecord::StaleObjectError
-        Result.new(ok: false, error_code: "conflict", error_message: "操作が競合しました。もう一度お試しください。")
-      rescue ActiveRecord::RecordInvalid => e
-        Result.new(ok: false, error_code: "invalid", error_message: e.record.errors.full_messages.join(", "))
-      end
 
-      private
-
-      # sign=-1 減算 / +1 復元。負数を許さないため 0 でクランプ。
-      def adjust_materials!(project_id, sign:)
-        low = []
-        TaskMaterial.joins(:task).where(tasks: { project_id: project_id }).find_each do |tm|
-          qty = (tm.qty_used || 0).to_d
-          next if qty.zero?
-
-          mat =
-            if tm.material_id.present?
-              Material.lock.find_by(id: tm.material_id)
-            else
-              Material.lock.find_by(name: tm.material_name)
+        # 在庫減算
+        low_stock_materials = []
+        project.tasks.includes(:task_materials).each do |task|
+          task.task_materials.each do |tm|
+            if tm.material_id.present? && tm.qty_used > 0
+              material = ::Material.lock.find(tm.material_id)
+              material.current_qty -= tm.qty_used
+              material.save!
+              
+              # 閾値を下回った場合は low_stock に追加
+              if material.current_qty < material.threshold_qty
+                low_stock_materials << {
+                  material_id: material.id,
+                  name: material.name,
+                  current_qty: material.current_qty,
+                  threshold_qty: material.threshold_qty
+                }
+              end
             end
-          next unless mat
-
-          next_qty = mat.current_qty.to_d + sign * qty
-          mat.current_qty = [ next_qty, 0 ].max # 0未満にしない
-          mat.save!
-
-          if mat.current_qty < mat.threshold_qty
-            low << {
-              material_id:  mat.id,
-              name:         mat.name,
-              current_qty:  mat.current_qty.to_d,
-              threshold_qty: mat.threshold_qty.to_d
-            }
           end
         end
-        low
+
+        # Delivery を delivered に（プロジェクト単位の運用）
+        ::Delivery.lock.where(project_id: project.id, status: "pending").update_all(status: "delivered")
+
+        project.update!(status: "completed")
+
+        ::AuditLog.create!(
+          action: "project.complete",
+          target_type: "project",
+          target_id: project.id,
+          summary: "納品完了（案件完了）",
+          inverse: { method: "POST", path: "/api/projects/#{project.id}/revert-complete", payload: {} }
+        )
+
+        Result.new(ok: true, project: project, low_stock: low_stock_materials)
       end
+    rescue ActiveRecord::RecordNotFound
+      Result.new(ok: false, error_code: "not_found", error_message: "案件が見つかりません。")
     end
+
+    private
+
+    def conflict!(code)
+      Result.new(ok: false, error_code: "conflict", error_message: code)
+    end
+  end
 end
