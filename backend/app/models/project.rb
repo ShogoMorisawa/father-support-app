@@ -3,6 +3,7 @@ class Project < ApplicationRecord
     has_many :tasks, dependent: :delete_all
     has_many :deliveries, dependent: :delete_all
     has_one :estimate, dependent: :nullify
+    has_many :photos, dependent: :delete_all
 
     enum :status, {
       in_progress: "in_progress",

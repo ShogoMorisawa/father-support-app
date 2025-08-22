@@ -29,11 +29,21 @@ module Projects
         project.update!(status: "delivery_scheduled")
         ::Delivery.lock.where(project_id: project.id, status: "delivered").update_all(status: "pending")
 
+        deltas = []
+        project.tasks.includes(:task_materials).each do |task|
+          task.task_materials.each do |tm|
+            if tm.material_id.present? && tm.qty_used > 0
+              name = ::Material.find(tm.material_id).name rescue (tm.material&.name || tm.material_name)
+              deltas << "#{name} +#{tm.qty_used.to_s('F')}"
+            end
+          end
+        end
+
         ::AuditLog.create!(
           action: "project.revert_complete",
           target_type: "project",
           target_id: project.id,
-          summary: "納品完了を取り消し（案件を再オープン）",
+          summary: deltas.present? ? "納品完了を取り消し（在庫: #{deltas.join(' / ')}）" : "納品完了を取り消し（案件を再オープン）",
           inverse: { method: "POST", path: "/api/projects/#{project.id}/complete", payload: {} }
         )
 

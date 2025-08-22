@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_17_124625) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_20_000100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -51,7 +51,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_17_124625) do
     t.index ["project_id", "date"], name: "index_deliveries_on_project_id_and_date"
     t.index ["project_id"], name: "index_deliveries_on_project_id"
     t.index ["title"], name: "idx_deliveries_title_trgm", opclass: :gin_trgm_ops, using: :gin
-    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'delivered'::character varying, 'cancelled'::character varying]::text[])", name: "chk_deliveries_status"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'delivered'::character varying::text, 'cancelled'::character varying::text])", name: "chk_deliveries_status"
   end
 
   create_table "estimate_items", force: :cascade do |t|
@@ -82,7 +82,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_17_124625) do
     t.index ["status", "scheduled_at"], name: "index_estimates_on_status_and_scheduled_at"
     t.check_constraint "accepted IS NULL OR accepted = true AND project_id IS NOT NULL AND price_cents IS NOT NULL AND price_cents >= 0 OR accepted = false AND project_id IS NULL", name: "chk_est_accept_project_price"
     t.check_constraint "status::text <> 'completed'::text OR accepted IS NOT NULL", name: "chk_est_completed_has_accepted"
-    t.check_constraint "status::text = ANY (ARRAY['scheduled'::character varying, 'completed'::character varying, 'cancelled'::character varying]::text[])", name: "chk_estimates_status"
+    t.check_constraint "status::text = ANY (ARRAY['scheduled'::character varying::text, 'completed'::character varying::text, 'cancelled'::character varying::text])", name: "chk_estimates_status"
   end
 
   create_table "idempotency_keys", force: :cascade do |t|
@@ -106,6 +106,35 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_17_124625) do
     t.check_constraint "current_qty >= 0::numeric AND threshold_qty >= 0::numeric", name: "chk_materials_qty_nonneg"
   end
 
+  create_table "photos", force: :cascade do |t|
+    t.bigint "project_id", null: false
+    t.bigint "project_item_id"
+    t.string "kind", default: "other", null: false
+    t.string "blob_key", null: false
+    t.string "filename"
+    t.string "content_type"
+    t.integer "byte_size"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id", "created_at"], name: "index_photos_on_project_id_and_created_at"
+    t.index ["project_id"], name: "index_photos_on_project_id"
+  end
+
+  create_table "project_photos", force: :cascade do |t|
+    t.bigint "project_id", null: false
+    t.bigint "project_item_id"
+    t.string "kind", default: "other", null: false
+    t.string "key", null: false
+    t.string "content_type"
+    t.integer "byte_size"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_project_photos_on_key"
+    t.index ["project_id", "created_at"], name: "index_project_photos_on_project_id_and_created_at"
+    t.index ["project_id"], name: "index_project_photos_on_project_id"
+    t.check_constraint "kind::text = ANY (ARRAY['before'::character varying, 'after'::character varying, 'other'::character varying]::text[])", name: "chk_project_photos_kind"
+  end
+
   create_table "projects", force: :cascade do |t|
     t.bigint "customer_id", null: false
     t.string "title", limit: 200, null: false
@@ -116,7 +145,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_17_124625) do
     t.datetime "updated_at", null: false
     t.index ["customer_id", "status"], name: "index_projects_on_customer_id_and_status"
     t.index ["customer_id"], name: "index_projects_on_customer_id"
-    t.check_constraint "status::text = ANY (ARRAY['in_progress'::character varying, 'delivery_scheduled'::character varying, 'completed'::character varying]::text[])", name: "chk_projects_status"
+    t.check_constraint "status::text = ANY (ARRAY['in_progress'::character varying::text, 'delivery_scheduled'::character varying::text, 'completed'::character varying::text])", name: "chk_projects_status"
   end
 
   create_table "task_materials", force: :cascade do |t|
@@ -146,7 +175,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_17_124625) do
     t.datetime "prepared_at"
     t.index ["project_id", "due_on"], name: "index_tasks_on_project_id_and_due_on"
     t.index ["project_id"], name: "index_tasks_on_project_id"
-    t.check_constraint "status::text = ANY (ARRAY['todo'::character varying, 'doing'::character varying, 'done'::character varying]::text[])", name: "chk_tasks_status"
+    t.check_constraint "status::text = ANY (ARRAY['todo'::character varying::text, 'doing'::character varying::text, 'done'::character varying::text])", name: "chk_tasks_status"
   end
 
   add_foreign_key "deliveries", "projects", on_delete: :cascade
@@ -154,6 +183,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_17_124625) do
   add_foreign_key "estimate_items", "materials"
   add_foreign_key "estimates", "customers"
   add_foreign_key "estimates", "projects"
+  add_foreign_key "photos", "projects", on_delete: :cascade
+  add_foreign_key "project_photos", "projects", on_delete: :cascade
   add_foreign_key "projects", "customers", on_delete: :restrict
   add_foreign_key "task_materials", "materials"
   add_foreign_key "task_materials", "tasks", on_delete: :cascade

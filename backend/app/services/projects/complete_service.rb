@@ -17,7 +17,8 @@ module Projects
 
         tasks = project.tasks.to_a
         not_done      = tasks.select { |t| t.status != "done" }
-        not_prepared  = tasks.select { |t| t.prepared_at.nil? }
+        # 完了済みタスクは準備完了とみなす
+        not_prepared  = tasks.select { |t| t.status != "done" && t.prepared_at.nil? }
 
         if not_done.any? || not_prepared.any?
           msgs = []
@@ -53,11 +54,21 @@ module Projects
 
         project.update!(status: "completed")
 
+        deltas = []
+        project.tasks.includes(:task_materials).each do |task|
+          task.task_materials.each do |tm|
+            if tm.material_id.present? && tm.qty_used > 0
+              name = ::Material.find(tm.material_id).name rescue (tm.material&.name || tm.material_name)
+              deltas << "#{name} -#{tm.qty_used.to_s('F')}"
+            end
+          end
+        end
+
         ::AuditLog.create!(
           action: "project.complete",
           target_type: "project",
           target_id: project.id,
-          summary: "納品完了（案件完了）",
+          summary: deltas.present? ? "納品完了（在庫: #{deltas.join(' / ')}）" : "納品完了（案件完了）",
           inverse: { method: "POST", path: "/api/projects/#{project.id}/revert-complete", payload: {} }
         )
 

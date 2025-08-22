@@ -640,7 +640,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [pending, done, cancelled]
+            enum: [pending, all]
             default: pending
         - name: order
           in: query
@@ -1098,7 +1098,38 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/TaskBulkCreateRequest' }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      projectId: { type: integer }
+                      delivery:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          date: { type: string, format: date }
+                          status: { type: string }
+                          title: { type: string }
+                        required: [id, date, status, title]
+                      tasks:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            title: { type: string }
+                            dueOn: { type: string, format: date, nullable: true }
+                          required: [id, title]
+                    required: [projectId, delivery, tasks]
+                  correlationId: { type: string, nullable: true }
+                required: [ok, data]
         '400': { description: 'Idempotencyキーなし 等' }
         '404': { description: '見つからない' }
         '422': { description: '不正' }

@@ -76,6 +76,7 @@ export function useTogglePrepared(deliveryId: number) {
       qc.invalidateQueries({ queryKey: ['deliveries'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
       qc.invalidateQueries({ queryKey: ['history'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] }); // ← 追加
     },
   });
 }
@@ -98,18 +99,19 @@ export function useBulkShiftDeliveries() {
   });
 }
 
-export function useCompleteDelivery(deliveryId: number) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.post(`/deliveries/${deliveryId}/complete`, {}).then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['delivery', deliveryId] });
-      qc.invalidateQueries({ queryKey: ['deliveries'] });
-      qc.invalidateQueries({ queryKey: ['dashboard'] });
-      qc.invalidateQueries({ queryKey: ['history'] });
-    },
-  });
-}
+// TODO: 将来実装予定 - 納品完了エンドポイント
+// export function useCompleteDelivery(deliveryId: number) {
+//   const qc = useQueryClient();
+//   return useMutation({
+//     mutationFn: () => api.post(`/deliveries/${deliveryId}/complete`, {}).then((r) => r.data),
+//     onSuccess: () => {
+//       qc.invalidateQueries({ queryKey: ['delivery', deliveryId] });
+//       qc.invalidateQueries({ queryKey: ['deliveries'] });
+//       qc.invalidateQueries({ queryKey: ['dashboard'] });
+//       qc.invalidateQueries({ queryKey: ['history'] });
+//     },
+//   });
+// }
 
 // ---- Tasks
 export function useTasks(order: 'due.asc' | 'due.desc' = 'due.asc', limit = 200) {
@@ -164,15 +166,38 @@ export function useTaskBulkCreate(projectId: number) {
   });
 }
 
+// ---- Completed Projects
+export function useCompletedProjects(params?: {
+  from?: string; // YYYY-MM-DD
+  to?: string; // YYYY-MM-DD
+  q?: string;
+  order?: 'completed.desc' | 'completed.asc';
+  limit?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to) qs.set('to', params.to);
+  if (params?.q && params.q.trim()) qs.set('q', params.q.trim());
+  qs.set('order', params?.order ?? 'completed.desc');
+  qs.set('limit', String(params?.limit ?? 100));
+  const qstr = qs.toString();
+  return useQuery({
+    queryKey: ['projects', 'completed', qstr],
+    queryFn: async () => api.get(`/projects/completed?${qstr}`).then((r) => r.data),
+    refetchOnWindowFocus: false,
+  });
+}
+
 // ---- Projects
-export function useCompleteProject(projectId: number, options?: { completedAt?: string }) {
+export function useCompleteProject(projectId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () =>
+    // 実行時に completedAt を渡せるように
+    mutationFn: (payload?: { completedAt?: string }) =>
       api
         .post(
           `/projects/${projectId}/complete`,
-          options?.completedAt ? { completedAt: options.completedAt } : {},
+          payload?.completedAt ? { completedAt: payload.completedAt } : {},
         )
         .then((r) => r.data),
     onSuccess: () => {
@@ -181,6 +206,83 @@ export function useCompleteProject(projectId: number, options?: { completedAt?: 
       qc.invalidateQueries({ queryKey: ['dashboard'] });
       qc.invalidateQueries({ queryKey: ['history'] });
       qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+export function useProjectPhotos(projectId: number) {
+  return useQuery({
+    queryKey: ['project', 'photos', projectId],
+    enabled: !!projectId,
+    queryFn: async () => api.get(`/projects/${projectId}/photos`).then((r) => r.data),
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** presign + S3 PUT + attach をまとめて行うアップロード用フック */
+export function useUploadProjectPhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    // payload: { projectId, file, kind }
+    mutationFn: async (payload: {
+      projectId: number;
+      file: File;
+      kind: 'before' | 'after' | 'other';
+    }) => {
+      const { projectId, file, kind } = payload;
+
+      // 1) presign
+      const presignRes = await api
+        .post(`/photos/presign`, {
+          fileName: file.name,
+          contentType: file.type || 'application/octet-stream',
+          byteSize: file.size,
+          scope: 'project',
+          projectId,
+        })
+        .then((r) => r.data);
+      const { url, headers, key } = presignRes.data;
+
+      // 2) 直PUT（fetch 使用）
+      const putHeaders = new Headers(headers || {});
+      if (!putHeaders.has('Content-Type') && file.type) putHeaders.set('Content-Type', file.type);
+      const putRes = await fetch(url, { method: 'PUT', headers: putHeaders, body: file });
+      if (!putRes.ok) {
+        const text = await putRes.text().catch(() => '');
+        throw new Error(`アップロードに失敗しました（${putRes.status}） ${text}`.trim());
+      }
+
+      // 3) attach（メタ登録）
+      const attachRes = await api
+        .post(`/photos/attach`, {
+          projectId,
+          kind,
+          blobKey: key,
+          contentType: file.type || 'application/octet-stream',
+          byteSize: file.size,
+        })
+        .then((r) => r.data);
+
+      return attachRes?.data?.photo;
+    },
+    onSuccess: (_photo, vars) => {
+      // 一覧＆履歴の更新
+      qc.invalidateQueries({ queryKey: ['project', 'photos', vars.projectId] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+      qc.invalidateQueries({ queryKey: ['projects', 'completed'] });
+    },
+  });
+}
+
+/** 写真の削除（/api/photos/detach）。inverse 用のUndoでも可 */
+export function useDetachPhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ photoId }: { photoId: number }) =>
+      api.post(`/photos/detach`, { photoId }).then((r) => r.data),
+    onSuccess: (_res, _vars, _ctx) => {
+      // 呼び出し元で invalidate したいプロジェクトIDが分かるよう、
+      // mutate({ photoId, projectId }) の形式で使うのがおすすめ
     },
   });
 }
@@ -194,6 +296,7 @@ export function useRevertComplete() {
       qc.invalidateQueries({ queryKey: ['deliveries'] });
       qc.invalidateQueries({ queryKey: ['history'] });
       qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['projects', 'completed'] });
     },
   });
 }

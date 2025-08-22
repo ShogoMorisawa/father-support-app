@@ -9,7 +9,8 @@ module Api
           if result.ok
             render_ok(data: {
               projectId: result.project.id,
-              status: result.project.status
+              status: result.project.status,
+              lowStock: result.low_stock || []   # ← 明示的に返す
             })
           else
             code = result.error_code

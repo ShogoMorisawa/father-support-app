@@ -37,7 +37,39 @@ class Projects::Tasks::BulkCreateService
           due_on: @delivery_on
         )
         tasks << t
+
+        # 材料情報を処理してTaskMaterialを作成
+        Array(it["materials"]).each do |m|
+          name = (m["materialName"] || m["name"]).to_s.strip
+          qty_planned = m["qtyPlanned"]
+          
+          # 完全空行は捨てる
+          next if name.blank? && (qty_planned.blank? || qty_planned == 0)
+          
+          # 材料を検索（ID優先、なければ名前で検索）
+          material = if m["materialId"].present?
+                      ::Material.find_by(id: m["materialId"])
+                    else
+                      ::Material.find_by(name: name)
+                    end
+          
+          ::TaskMaterial.create!(
+            task: t,
+            material: material,                    # 見つからなければ nil でOK
+            material_name: name.presence || (material&.name || "（未設定）"),
+            qty_planned: qty_planned.present? ? BigDecimal(qty_planned.to_s) : nil # nil可
+          )
+        end
       end
+
+      # 監査ログを作成（将来のUndo機能用）
+      ::AuditLog.create!(
+        action: "tasks.bulk_create",
+        target_type: "project",
+        target_id: project.id,
+        summary: "作業一括作成（#{tasks.length}件）",
+        inverse: {} # TODO: 将来実装 - 一括削除のUndo用
+      )
 
       Result.new(ok: true, project: project, tasks: tasks, deliveries: [delivery])
     end

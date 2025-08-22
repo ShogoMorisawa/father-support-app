@@ -10,7 +10,14 @@ Rails.application.routes.draw do
   namespace :api do
     resource :health, only: [ :show ]
 
-    resources :projects, only: [] do
+    # Photos
+    post "photos/presign", to: "photos#presign"
+    post "photos/attach",  to: "photos#attach"
+    post "photos/detach",  to: "photos#detach"  # Undo用（inverse向け）
+
+    resources :projects, only: [:index] do
+      # プロジェクト単位の写真一覧/削除
+      resources :photos, only: [:index, :destroy], module: :projects
       # /api/projects/:project_id/complete
       post :complete, to: "projects/completions#create"
       # /api/projects/:project_id/revert-complete
@@ -19,6 +26,9 @@ Rails.application.routes.draw do
       # /api/projects/:project_id/tasks/bulk-create
       post "tasks/bulk-create", to: "projects/tasks/bulk_creates#create"
     end
+
+    # 完了済み案件一覧
+    get "projects/completed", to: "projects/completed#index"
 
     # /api/deliveries?status=pending&order=date.asc&limit=200
     resources :deliveries, only: [ :index, :show ]

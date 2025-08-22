@@ -1,8 +1,7 @@
 'use client';
 
 import Toast from '@/app/_components/Toast';
-import { api } from '@/lib/api/client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTaskBulkCreate } from '@/lib/api/hooks';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -26,7 +25,6 @@ export default function BulkCreateTasksPage() {
   const params = useParams<{ id: string }>();
   const projectId = Number(params.id);
   const router = useRouter();
-  const qc = useQueryClient();
 
   const [deliveryOn, setDeliveryOn] = useState<string>(todayPlus(3)); // デフォルト：3日後（JST運用想定）
   const [items, setItems] = useState<ItemRow[]>([
@@ -39,27 +37,7 @@ export default function BulkCreateTasksPage() {
   ]);
   const [toast, setToast] = useState<string | null>(null);
 
-  const bulk = useMutation({
-    mutationFn: (payload: {
-      deliveryOn: string;
-      items: {
-        title: string;
-        kind?: string | null;
-        materials?: {
-          materialId?: number | null;
-          materialName?: string | null;
-          qtyPlanned?: number | null;
-        }[];
-      }[];
-    }) => api.post(`/projects/${projectId}/tasks/bulk-create`, payload).then((r) => r.data),
-    onSuccess: () => {
-      // 影響範囲のみキャッシュ更新
-      qc.invalidateQueries({ queryKey: ['deliveries'] });
-      qc.invalidateQueries({ queryKey: ['tasks'] });
-      qc.invalidateQueries({ queryKey: ['dashboard'] });
-      qc.invalidateQueries({ queryKey: ['history'] });
-    },
-  });
+  const bulk = useTaskBulkCreate(projectId);
 
   const addRow = () =>
     setItems((prev) => [
@@ -122,7 +100,7 @@ export default function BulkCreateTasksPage() {
         materials: r.materials
           .map((m) => ({
             materialName: m.materialName.trim() || undefined,
-            qtyPlanned: m.qtyPlanned ?? undefined,
+            qtyPlanned: m.qtyPlanned != null && m.qtyPlanned >= 0 ? m.qtyPlanned : undefined,
           }))
           .filter((m) => m.materialName || (m.qtyPlanned !== undefined && m.qtyPlanned !== null)),
       }))
@@ -130,12 +108,19 @@ export default function BulkCreateTasksPage() {
     if (cleaned.length === 0) return setToast('作業の行を1件以上入力してください。');
 
     try {
-      await bulk.mutateAsync({ deliveryOn, items: cleaned });
+      const result = await bulk.mutateAsync({ deliveryOn, items: cleaned });
       setToast('作業を登録しました。');
-      // 納品詳細へ誘導（プロジェクトに紐づく納品は1件運用）
-      router.push('/deliveries');
+      // 作成された納品の詳細ページに直接遷移
+      if (result.data?.delivery?.id) {
+        router.push(`/deliveries/${result.data.delivery.id}`);
+      } else {
+        router.push('/deliveries');
+      }
     } catch (e: any) {
-      setToast('登録に失敗しました。もう一度お試しください。');
+      // エラーレスポンスの詳細を表示
+      const errorMessage =
+        e.response?.data?.message || '登録に失敗しました。もう一度お試しください。';
+      setToast(errorMessage);
     }
   };
 
