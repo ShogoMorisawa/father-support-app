@@ -1,223 +1,142 @@
 'use client';
-import { useDashboard, useUndoMutation } from '@/lib/api/hooks';
+import { useDashboard } from '@/lib/api/hooks';
 import Link from 'next/link';
-import { useState } from 'react';
-import Toast from './Toast';
 
 function ymdJst(d = new Date()) {
-  // JST YYYY-MM-DD
   const t = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return t.toISOString().slice(0, 10);
+  return t.toISOString().slice(0, 10); // YYYY-MM-DD (JST基準)
+}
+function todayJstYmd() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date()); // YYYY-MM-DD
+}
+function isoToJstYmd(iso?: string) {
+  if (!iso) return '';
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return '';
+  // en-CA は YYYY-MM-DD 形式
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(dt);
+}
+function jstTime(iso?: string) {
+  if (!iso) return '';
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return '';
+  return dt.toLocaleTimeString('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 export default function Dashboard() {
-  const today = ymdJst();
-  const { data, refetch } = useDashboard({
+  const today = todayJstYmd();
+  const { data, isLoading, error } = useDashboard({
     date: today,
-    estimatesLimit: 3,
-    tasksLimit: 5,
-    deliveriesLimit: 3,
-    historyLimit: 5,
-    lowLimit: 3,
+    // 充分に大きめに取ってクライアント側で「今日」に絞る
+    estimatesLimit: 100,
+    tasksLimit: 0, // ホームでは表示しない
+    deliveriesLimit: 300,
+    historyLimit: 0, // ホームでは表示しない
+    lowLimit: 0, // ホームでは表示しない（在庫はメニュー遷移）
   });
-  const d = data?.data;
-  const undo = useUndoMutation();
-  const [toast, setToast] = useState<string | null>(null);
+  if (isLoading) return <p className="p-4">読み込み中です…</p>;
+  if (error) return <p className="p-4 text-red-600">通信に失敗しました。再試行してください。</p>;
 
-  const estimates: any[] = d?.estimates ?? [];
-  const tasks: any[] = d?.tasks ?? [];
-  const deliveries: any[] = d?.deliveries ?? [];
-  const low = d?.lowStock ?? { count: 0, items: [] };
-  const history: any[] = d?.history?.items ?? [];
+  const d = data?.data;
+
+  // ---- 今日の見積（時間順）
+  const estimatesAll: any[] = d?.estimates ?? [];
+  const estimatesToday = estimatesAll
+    .filter((e) => e.status === 'scheduled' && isoToJstYmd(e.scheduledAt) === today)
+    .sort(
+      (a, b) => new Date(a.scheduledAt || 0).getTime() - new Date(b.scheduledAt || 0).getTime(),
+    );
+
+  // ---- 今日の納品（期日一致）
+  const deliveriesAll: any[] = d?.deliveries ?? [];
+  const deliveriesToday = deliveriesAll
+    .filter((x) => x.date === today)
+    .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
 
   return (
-    <>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="text-gray-500">対象日：{d?.date ?? today}</span>
-        </div>
+    <div className="space-y-4">
+      {/* ヘッダ：今日の概要 + クイック導線 */}
+      <div className="flex items-center justify-between">
+        <nav className="flex items-center gap-3 text-sm">
+          <Link href="/estimates/new" className="underline">
+            見積を作成
+          </Link>
+          <Link href="/deliveries/tools" className="underline">
+            納品調整
+          </Link>
+          <Link href="/calendar" className="underline">
+            カレンダー
+          </Link>
+        </nav>
       </div>
+      <div className="text-sm text-gray-600">対象日：{d?.date ?? today}</div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        {/* 見積 */}
-        <section className="rounded border bg-white p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold">
-              見積予定（次の{estimates.filter((e) => e.status === 'scheduled').length}件）
-            </h2>
-            <div className="flex items-center gap-3">
-              <Link href="/estimates/new" className="text-sm underline">
-                新規作成
-              </Link>
-              <Link href="/estimates" className="text-sm underline">
-                一覧
-              </Link>
-            </div>
-          </div>
-          <ul className="space-y-2">
-            {estimates
-              .filter((e) => e.status === 'scheduled')
-              .map((e) => (
-                <li key={`est-${e.id}`} className="text-sm">
-                  <div className="text-gray-600">
-                    {new Date(e.scheduledAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
-                  </div>
-                  <div className="font-medium">{e.customerName ?? '（無名）'}</div>
-                </li>
-              ))}
-            {estimates.filter((e) => e.status === 'scheduled').length === 0 && (
-              <li className="text-sm text-gray-500">予定されている見積はありません。</li>
-            )}
-          </ul>
-        </section>
-
-        {/* 作業 */}
-        <section className="rounded border bg-white p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold">作業（期日順）</h2>
-            <Link href="/tasks" className="text-sm underline">
-              一覧
-            </Link>
-          </div>
-          <ul className="space-y-2">
-            {tasks
-              .filter((t) => t.status !== 'done')
-              .map((t) => (
-                <li key={`task-${t.id}`} className="text-sm">
-                  <div className="text-gray-600">{t.dueOn ?? '-'}</div>
-                  <div className="font-medium">
-                    {t.customerName ?? '-'} / {t.title}
-                  </div>
-                </li>
-              ))}
-            {tasks.filter((t) => t.status !== 'done').length === 0 && (
-              <li className="text-sm text-gray-500">未完了の作業はありません。</li>
-            )}
-          </ul>
-        </section>
-
-        {/* 納品 */}
-        <section className="rounded border bg-white p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold">納品予定</h2>
-            <div className="flex items-center gap-3">
-              <Link href="/deliveries/tools" className="text-sm underline">
-                調整ツール
-              </Link>
-              <Link href="/deliveries" className="text-sm underline">
-                一覧
-              </Link>
-            </div>
-          </div>
-          <ul className="space-y-2">
-            {deliveries.map((d) => (
-              <li key={`del-${d.id}`} className="text-sm">
-                <div className="text-gray-600">{d.date}</div>
-                <div className="font-medium">
-                  {d.customerName ?? '-'} / {d.title}
-                </div>
-              </li>
-            ))}
-            {deliveries.length === 0 && (
-              <li className="text-sm text-gray-500">納品予定はありません。</li>
-            )}
-          </ul>
-        </section>
-
-        {/* 在庫 */}
-        <section className="rounded border bg-white p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold">在庫アラート</h2>
-            <div className="flex items-center gap-3">
-              <Link href="/inventory/order" className="text-sm underline">
-                発注テンプレ
-              </Link>
-              <Link href="/inventory" className="text-sm underline">
-                在庫一覧
-              </Link>
-            </div>
-          </div>
-          {low.count === 0 ? (
-            <p className="text-sm text-gray-600">在庫は十分です。</p>
-          ) : (
-            <ul className="space-y-2">
-              {low.items.map((m: any) => (
-                <li key={`low-${m.materialId}`} className="text-sm">
-                  ・{m.name}（{m.currentQty} / {m.thresholdQty}）
-                </li>
-              ))}
-              {low.count > low.items.length && (
-                <li className="text-xs text-gray-500">ほか {low.count - low.items.length} 件</li>
-              )}
-            </ul>
-          )}
-        </section>
-      </div>
-
-      {/* 顧客一覧 */}
+      {/* 今日の見積 */}
       <section className="rounded border bg-white p-4">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-bold">顧客一覧</h2>
-          <div className="flex items-center gap-3">
-            <Link href="/customers/new" className="text-sm underline">
-              新規登録
-            </Link>
-            <Link href="/customers" className="text-sm underline">
-              一覧を見る
-            </Link>
-          </div>
-        </div>
-        <p className="text-sm text-gray-600">
-          顧客の登録・編集・検索ができます。最近更新された顧客情報も確認できます。
-        </p>
-      </section>
-
-      {/* 履歴（Undo可） */}
-      <section className="rounded border bg-white p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-bold">最近の履歴</h2>
-          <Link className="text-sm underline" href="/history">
-            履歴一覧
+          <h2 className="font-bold">今日の見積</h2>
+          <Link href="/estimates" className="text-sm underline">
+            一覧へ
           </Link>
         </div>
-        <ul className="space-y-2">
-          {history.map((h) => {
-            const key = `h-${h.id}-${h.createdAt ?? ''}`;
-            return (
-              <li key={key} className="text-sm flex items-center justify-between">
-                <div>
-                  <span className="text-gray-600 mr-2">
-                    {h.createdAt
-                      ? new Date(h.createdAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
-                      : '-'}
-                  </span>
-                  <span>{h.summary}</span>
-                </div>
-                <div>
-                  <button
-                    className="text-sm underline disabled:opacity-50"
-                    disabled={!h.canUndo}
-                    onClick={async () => {
-                      try {
-                        await undo.mutateAsync(h.inverse);
-                        setToast('元に戻しました。');
-                        refetch();
-                      } catch {
-                        setToast('操作が競合しました。少し時間をおいて再試行してください');
-                      }
-                    }}
-                  >
-                    元に戻す
-                  </button>
-                </div>
+        {estimatesToday.length === 0 ? (
+          <p className="text-sm text-gray-500">本日の見積はありません。</p>
+        ) : (
+          <ul className="space-y-2">
+            {estimatesToday.map((e) => (
+              <li key={`est-${e.id}`} className="text-sm">
+                <div className="text-gray-600">{jstTime(e.scheduledAt)}</div>
+                <div className="font-medium">{e.customerName ?? '（無名）'}</div>
+                {e.address && <div className="text-xs text-gray-600">{e.address}</div>}
               </li>
-            );
-          })}
-          {history.length === 0 && <li className="text-sm text-gray-500">履歴はありません。</li>}
-        </ul>
+            ))}
+          </ul>
+        )}
       </section>
 
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-    </>
+      {/* 今日の納品 */}
+      <section className="rounded border bg-white p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-bold">今日の納品</h2>
+          <div className="flex items-center gap-3">
+            <Link href="/deliveries/tools" className="text-sm underline">
+              調整ツール
+            </Link>
+            <Link href="/deliveries" className="text-sm underline">
+              一覧へ
+            </Link>
+          </div>
+        </div>
+        {deliveriesToday.length === 0 ? (
+          <p className="text-sm text-gray-500">本日の納品はありません。</p>
+        ) : (
+          <ul className="space-y-2">
+            {deliveriesToday.map((dl) => (
+              <li key={`del-${dl.id}`} className="text-sm">
+                <div className="font-medium">{dl.customerName ?? '-'}</div>
+                <div className="text-gray-600">{dl.title ?? '納品'}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* ここから下の"なんでもカード"はホームから撤去し、メニュー遷移に一本化 */}
+      {/* 顧客 / 在庫 / 作業 / 履歴 などはそれぞれのページへ */}
+    </div>
   );
 }
