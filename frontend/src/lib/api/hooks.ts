@@ -14,11 +14,13 @@ export function useDashboard(params?: {
 }) {
   const qs = new URLSearchParams();
   if (params?.date) qs.set('date', params.date);
-  if (params?.estimatesLimit) qs.set('estimatesLimit', String(params.estimatesLimit));
-  if (params?.tasksLimit) qs.set('tasksLimit', String(params.tasksLimit));
-  if (params?.deliveriesLimit) qs.set('deliveriesLimit', String(params.deliveriesLimit));
-  if (params?.historyLimit) qs.set('historyLimit', String(params.historyLimit));
-  if (params?.lowLimit) qs.set('lowLimit', String(params.lowLimit));
+  if (typeof params?.estimatesLimit === 'number')
+    qs.set('estimatesLimit', String(params.estimatesLimit));
+  if (typeof params?.tasksLimit === 'number') qs.set('tasksLimit', String(params.tasksLimit));
+  if (typeof params?.deliveriesLimit === 'number')
+    qs.set('deliveriesLimit', String(params.deliveriesLimit));
+  if (typeof params?.historyLimit === 'number') qs.set('historyLimit', String(params.historyLimit));
+  if (typeof params?.lowLimit === 'number') qs.set('lowLimit', String(params.lowLimit));
   const key = ['dashboard', qs.toString()];
   return useQuery({
     queryKey: key,
@@ -38,13 +40,15 @@ export function useHistory(limit = 10) {
 
 // ---- Deliveries
 export function useDeliveries(opts?: {
-  status?: 'pending' | 'all';
+  status?: 'pending' | 'delivered' | 'cancelled';
   order?: 'date.asc' | 'date.desc';
   limit?: number;
+  enabled?: boolean;
 }) {
   const status = opts?.status ?? 'pending';
   const order = opts?.order ?? 'date.asc';
   const limit = opts?.limit ?? 200;
+  const enabled = opts?.enabled ?? true;
   const qs = new URLSearchParams();
   // 既定値でも「undefined」文字列は付けない
   if (status) qs.set('status', status);
@@ -53,7 +57,8 @@ export function useDeliveries(opts?: {
   const qstr = qs.toString();
   return useQuery({
     queryKey: ['deliveries', qstr],
-    queryFn: async () => api.get(`/deliveries?${qstr}`).then((r) => r.data),
+    queryFn: async () => api.get(`/deliveries?${qs.toString()}`).then((r) => r.data),
+    enabled,
   });
 }
 

@@ -2,12 +2,15 @@ module Api
     class DeliveriesController < Api::BaseController
       def index
         status_in = params[:status].to_s
-        status = %w[pending all].include?(status_in) ? status_in : "pending"
+        # 有効なステータスのみを許可
+        valid_statuses = %w[pending delivered cancelled all]
+        status = valid_statuses.include?(status_in) ? status_in : "pending"
         order  = params[:order].to_s
         limit  = [[(params[:limit] || 200).to_i, 1].max, 500].min
 
         rel = Delivery.includes(project: :customer)
-        rel = rel.where(status: "pending") unless status == "all"
+        # 特定のステータスのみをフィルタリング
+        rel = rel.where(status: status) unless status == "all"
         rel = (order == "date.desc") ? rel.order(date: :desc) : rel.order(date: :asc)
         rel = rel.limit(limit)
 
