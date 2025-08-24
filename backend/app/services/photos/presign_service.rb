@@ -3,6 +3,15 @@ module Photos
     Result = Struct.new(:ok, :url, :headers, :key, :error_code, :error_message, keyword_init: true)
 
     MAX_BYTES = (ENV["PHOTO_MAX_BYTES"] || 10 * 1024 * 1024).to_i # 既定10MB
+    
+    # 許可する画像形式
+    ALLOWED_CONTENT_TYPES = [
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/gif',
+      'image/webp'
+    ].freeze
 
     def self.call(file_name:, content_type:, byte_size:, scope:, project_id:, project_item_id: nil)
       new(file_name:, content_type:, byte_size:, scope:, project_id:, project_item_id:).call
@@ -20,6 +29,7 @@ module Photos
     def call
       return err!("invalid_scope", "scopeは'project'のみ対応しています。") unless @scope == "project"
       return err!("too_large", "ファイルサイズが大きすぎます。") if @byte_size <= 0 || @byte_size > MAX_BYTES
+      return err!("invalid_type", "許可されていないファイル形式です。") unless ALLOWED_CONTENT_TYPES.include?(@content_type)
 
       project = ::Project.find(@project_id)
 
@@ -40,7 +50,7 @@ module Photos
       # 拡張子は維持しつつ、ファイル名は安全化
       ext  = File.extname(base).downcase
       stem = base.sub(/#{Regexp.escape(ext)}\z/i, "")
-      safe = stem.parameterize(limit: 60, separator: "_")
+      safe = stem.parameterize(separator: "_")
       uuid = SecureRandom.uuid
       # 例: uploads/projects/123/2025/08/uuid_safe-name.jpg
       t = Time.now.utc
@@ -67,7 +77,7 @@ module Photos
         :put_object,
         bucket: bucket,
         key: key,
-        expires_in: (ENV["S3_PRESIGN_EXPIRES"] || 600).to_i,
+        expires_in: (ENV["S3_PRESIGN_EXPIRES"] || 300).to_i, # 5分に短縮
         content_type: content_type.presence
       )
       headers = {}

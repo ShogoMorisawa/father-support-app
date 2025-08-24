@@ -29,8 +29,16 @@ export default function ProjectPhotosPage() {
 
   const onFiles = async (files?: FileList | null) => {
     if (!files || files.length === 0) return;
+
     try {
       for (const f of Array.from(files)) {
+        // ファイル形式の事前チェック
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(f.type)) {
+          setToast('許可されていないファイル形式です。JPEG、PNG、GIF、WebPのみ対応しています。');
+          continue;
+        }
+
         await upload.mutateAsync({ projectId, file: f, kind });
       }
       setToast('写真をアップロードしました。');
@@ -85,10 +93,10 @@ export default function ProjectPhotosPage() {
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
               multiple
-              className="hidden"
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
               onChange={(e) => onFiles(e.target.files)}
+              className="hidden"
             />
             <button className="rounded border px-3 py-2" onClick={onChoose} disabled={uploading}>
               画像を選択

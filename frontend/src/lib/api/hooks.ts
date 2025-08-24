@@ -231,6 +231,14 @@ export function useUploadProjectPhoto() {
     }) => {
       const { projectId, file, kind } = payload;
 
+      // ファイル形式の事前チェック
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error(
+          '許可されていないファイル形式です。JPEG、PNG、GIF、WebPのみ対応しています。',
+        );
+      }
+
       // 1) presign
       const presignRes = await api
         .post(`/photos/presign`, {
@@ -241,15 +249,23 @@ export function useUploadProjectPhoto() {
           projectId,
         })
         .then((r) => r.data);
+
+      if (!presignRes.ok) {
+        throw new Error(presignRes.error?.message || 'presignに失敗しました');
+      }
+
       const { url, headers, key } = presignRes.data;
 
-      // 2) 直PUT（fetch 使用）
-      const putHeaders = new Headers(headers || {});
-      if (!putHeaders.has('Content-Type') && file.type) putHeaders.set('Content-Type', file.type);
-      const putRes = await fetch(url, { method: 'PUT', headers: putHeaders, body: file });
+      // 2) 直PUT（fetch 使用、Content-Typeはpresignのheadersをそのまま使用）
+      const putRes = await fetch(url, {
+        method: 'PUT',
+        headers: headers || {},
+        body: file,
+      });
+
       if (!putRes.ok) {
         const text = await putRes.text().catch(() => '');
-        throw new Error(`アップロードに失敗しました（${putRes.status}） ${text}`.trim());
+        throw new Error(`S3アップロードに失敗しました（${putRes.status}） ${text}`.trim());
       }
 
       // 3) attach（メタ登録）
@@ -262,6 +278,10 @@ export function useUploadProjectPhoto() {
           byteSize: file.size,
         })
         .then((r) => r.data);
+
+      if (!attachRes.ok) {
+        throw new Error(attachRes.error?.message || '写真の登録に失敗しました');
+      }
 
       return attachRes?.data?.photo;
     },

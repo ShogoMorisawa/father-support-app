@@ -2,6 +2,15 @@ module Photos
   class AttachService
     Result = Struct.new(:ok, :photo, :error_code, :error_message, keyword_init: true)
 
+    # 許可する画像形式（presignと一致させる）
+    ALLOWED_CONTENT_TYPES = [
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/gif',
+      'image/webp'
+    ].freeze
+
     def self.call(project_id:, kind:, blob_key:, content_type: nil, byte_size: nil)
       new(project_id:, kind:, blob_key:, content_type:, byte_size:).call
     end
@@ -18,6 +27,11 @@ module Photos
       raise ActiveRecord::RecordNotFound unless ::Project.exists?(@project_id)
       return err!("invalid", "blobKeyが不正です。") if @blob_key.blank?
       return err!("invalid", "kindが不正です。")     unless ProjectPhoto::KINDS.include?(@kind)
+      
+      # Content-Typeの検証（presign時と一致させる）
+      if @content_type.present? && !ALLOWED_CONTENT_TYPES.include?(@content_type)
+        return err!("invalid_type", "許可されていないファイル形式です。")
+      end
 
       photo = nil
       ActiveRecord::Base.transaction do
