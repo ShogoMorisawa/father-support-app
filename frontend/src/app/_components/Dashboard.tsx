@@ -2,10 +2,6 @@
 import { useDashboard } from '@/lib/api/hooks';
 import Link from 'next/link';
 
-function ymdJst(d = new Date()) {
-  const t = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return t.toISOString().slice(0, 10); // YYYY-MM-DD (JST基準)
-}
 function todayJstYmd() {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Tokyo',

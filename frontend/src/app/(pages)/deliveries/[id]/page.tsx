@@ -16,7 +16,7 @@ function ymd(d?: string) {
 export default function DeliveryDetailPage() {
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
-  const { data, isLoading, error, refetch } = useDeliveryDetail(id);
+  const { data, isLoading, error } = useDeliveryDetail(id);
   const payload = data?.data;
   // APIレスポンスの構造に合わせて修正
   const d = payload;

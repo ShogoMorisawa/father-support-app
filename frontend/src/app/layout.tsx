@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode, useState } from 'react';
+import './globals.css';
 import Nav from './nav';
 
 export default function RootLayout({ children }: { children: ReactNode }) {

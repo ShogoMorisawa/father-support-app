@@ -106,7 +106,7 @@ export default function DeliveriesPage() {
           {pendingItems.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-8">未完了の納品はありません。</p>
           ) : (
-            pendingItems.map((d: components['schemas']['DeliveryTask'], idx: number) => (
+            pendingItems.map((d: components['schemas']['DeliveryTask']) => (
               <div key={`pending-${(d as any).id}`} className="rounded border bg-white p-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -133,7 +133,7 @@ export default function DeliveriesPage() {
           {completedItems.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-8">完了済みの納品はありません。</p>
           ) : (
-            completedItems.map((d: components['schemas']['DeliveryTask'], idx: number) => (
+            completedItems.map((d: components['schemas']['DeliveryTask']) => (
               <div key={`completed-${(d as any).id}`} className="rounded border bg-white p-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
