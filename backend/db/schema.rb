@@ -132,7 +132,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_20_000100) do
     t.index ["key"], name: "index_project_photos_on_key"
     t.index ["project_id", "created_at"], name: "index_project_photos_on_project_id_and_created_at"
     t.index ["project_id"], name: "index_project_photos_on_project_id"
-    t.check_constraint "kind::text = ANY (ARRAY['before'::character varying, 'after'::character varying, 'other'::character varying]::text[])", name: "chk_project_photos_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['before'::character varying::text, 'after'::character varying::text, 'other'::character varying::text])", name: "chk_project_photos_kind"
   end
 
   create_table "projects", force: :cascade do |t|
