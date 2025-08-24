@@ -18,7 +18,11 @@ export default function DeliveriesToolsPage() {
   const [reason, setReason] = useState<string>('天候による日程調整');
   const [toast, setToast] = useState<string | null>(null);
 
-  const { data } = useDeliveries({ status, order: 'date.asc', limit: 200 });
+  const { data } = useDeliveries({
+    status: status === 'all' ? undefined : status,
+    order: 'date.asc',
+    limit: 200,
+  });
   const items: any[] = data?.data?.items ?? [];
   const run = useBulkShiftDeliveries();
 

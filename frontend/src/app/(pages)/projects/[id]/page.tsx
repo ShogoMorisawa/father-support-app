@@ -1,11 +1,6 @@
 'use client';
 import Toast from '@/app/_components/Toast';
-import {
-  useAttachPhoto,
-  useDeleteProjectPhoto,
-  usePresignPhoto,
-  useProjectPhotos,
-} from '@/lib/api/hooks';
+import { useProjectPhotos } from '@/lib/api/hooks';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -16,16 +11,20 @@ export default function ProjectDetailPage() {
   const { data, refetch } = useProjectPhotos(projectId);
   const items: any[] = data?.data?.items ?? [];
 
-  const presign = usePresignPhoto();
-  const attach = useAttachPhoto();
-  const del = useDeleteProjectPhoto(projectId);
+  // 一時的に無効化
+  // const presign = usePresignPhoto();
+  // const attach = useAttachPhoto();
+  // const del = useDeleteProjectPhoto(projectId);
 
   const [toast, setToast] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [kind, setKind] = useState<'before' | 'after' | 'other'>('other');
-  const disabled = !file || presign.isPending || attach.isPending;
+  const disabled = true; // 一時的に無効化
 
   const onUpload = async () => {
+    // 一時的に無効化
+    setToast('写真アップロード機能は一時的に無効化されています。');
+    /*
     if (!file) return;
     try {
       const p = await presign.mutateAsync({
@@ -46,6 +45,7 @@ export default function ProjectDetailPage() {
     } catch {
       setToast('アップロードに失敗しました。環境設定をご確認ください。');
     }
+    */
   };
 
   return (
@@ -86,6 +86,9 @@ export default function ProjectDetailPage() {
                   <button
                     className="underline text-xs"
                     onClick={async () => {
+                      // 一時的に無効化
+                      setToast('写真削除機能は一時的に無効化されています。');
+                      /*
                       try {
                         await del.mutateAsync(ph.id);
                         setToast('写真を削除しました。');
@@ -93,6 +96,7 @@ export default function ProjectDetailPage() {
                       } catch {
                         setToast('削除に失敗しました。');
                       }
+                      */
                     }}
                   >
                     削除
@@ -105,56 +109,42 @@ export default function ProjectDetailPage() {
         )}
       </section>
 
-      {/* 追加アップロード */}
-      <section className="rounded border bg-white p-4 space-y-3">
-        <div className="font-bold">写真を追加</div>
-        <div className="grid md:grid-cols-3 gap-3">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
-          <select
-            className="border rounded px-3 py-2"
-            value={kind}
-            onChange={(e) => setKind(e.target.value as any)}
-          >
-            <option value="before">before（施工前）</option>
-            <option value="after">after（施工後）</option>
-            <option value="other">other（その他）</option>
-          </select>
+      {/* 写真アップロード */}
+      <section className="rounded border bg-white p-4">
+        <div className="font-bold mb-2">写真を追加</div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm mb-1">種類</label>
+            <select
+              className="w-full border rounded px-3 py-2"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as any)}
+            >
+              <option value="before">施工前</option>
+              <option value="after">施工後</option>
+              <option value="other">その他</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm mb-1">ファイル</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
           <button
+            className="rounded bg-black text-white px-3 py-2 disabled:opacity-50"
             disabled={disabled}
             onClick={onUpload}
-            className="rounded bg-black text-white px-3 py-2 disabled:opacity-50"
           >
-            {presign.isPending || attach.isPending ? 'アップロード中…' : 'アップロード'}
+            アップロード
           </button>
         </div>
-        <p className="text-xs text-gray-500">
-          ※ 本番では S3 などの直PUT先URLを presign で発行してください。
-        </p>
       </section>
-
-      {/* 直近履歴のUndo（任意導線）：写真削除や添付を元に戻す */}
-      <HistoryUndoHint />
 
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </main>
-  );
-}
-
-function HistoryUndoHint() {
-  // シンプルに履歴ページへの導線のみ（既存 /history でUndo可能）
-  return (
-    <section className="rounded border bg-white p-4">
-      <div className="font-bold mb-1">操作履歴</div>
-      <p className="text-sm text-gray-600">
-        写真の添付/削除は履歴から元に戻せます。
-        <Link className="underline" href="/history">
-          履歴を見る
-        </Link>
-      </p>
-    </section>
   );
 }

@@ -90,7 +90,7 @@ export default function NewEstimatePage() {
                     .filter((it) => it.materialName.trim().length > 0)
                     .map((it) => ({ materialName: it.materialName, quantity: it.quantity })),
                 };
-                const res = await create.mutateAsync(payload);
+                await create.mutateAsync(payload);
                 setToast('見積を作成しました。');
                 setTimeout(() => router.push('/estimates'), 500);
               } catch {

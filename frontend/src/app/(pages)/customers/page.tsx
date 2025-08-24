@@ -7,9 +7,12 @@ export default function CustomersPage() {
   const [q, setQ] = useState('');
   const { data: listData } = useCustomers('name.asc', 200);
   const { data: searchData } = useCustomerSearch(q, 50);
-  const itemsAll: any[] = listData?.data?.items ?? [];
-  const itemsSearch: any[] = searchData?.data?.items ?? [];
-  const items = useMemo(() => (q.trim() ? itemsSearch : itemsAll), [q, itemsAll, itemsSearch]);
+
+  const items = useMemo(() => {
+    const itemsAll: any[] = listData?.data?.items ?? [];
+    const itemsSearch: any[] = searchData?.data?.items ?? [];
+    return q.trim() ? itemsSearch : itemsAll;
+  }, [q, listData?.data?.items, searchData?.data?.items]);
 
   return (
     <main className="max-w-4xl mx-auto p-4 space-y-4">
