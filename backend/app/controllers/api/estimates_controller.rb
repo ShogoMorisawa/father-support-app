@@ -7,8 +7,10 @@ module Api
         from  = params[:from].present? ? Date.parse(params[:from]) : Date.today
         limit = [ (params[:limit] || 3).to_i, 100 ].min
 
-        rel = Estimate.where(status: %w[scheduled completed]).order(scheduled_at: :asc)
-        rel = rel.where("scheduled_at >= ?", from.beginning_of_day)
+        # ダッシュボードと同じ条件で見積もりを取得
+        start_jst = Time.find_zone("Asia/Tokyo").local(from.year, from.month, from.day)
+        rel = Estimate.where(status: %w[scheduled]).order(scheduled_at: :asc)
+        rel = rel.where("scheduled_at >= ?", start_jst)
         items = rel.limit(limit).map do |e|
           {
             id: e.id,
