@@ -3,6 +3,11 @@ module Api
       def index
         limit = [ (params[:limit] || 10).to_i, 100 ].min
         logs = AuditLog.order(created_at: :desc).limit(limit)
+        
+        # project_idフィルターを追加
+        if params[:project_id].present?
+          logs = logs.where(target_type: "Project", target_id: params[:project_id])
+        end
 
         items = logs.map do |l|
           can_undo = compute_can_undo(l)

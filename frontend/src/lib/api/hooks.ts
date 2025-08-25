@@ -184,6 +184,57 @@ export function useTaskBulkCreate(projectId: number) {
   });
 }
 
+// ---- Projects
+export function useProjects(params?: {
+  status?: 'active' | 'completed' | 'all';
+  order?: 'due.asc' | 'due.desc' | 'completed.asc' | 'completed.desc';
+  q?: string;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.status) search.set('status', params.status);
+  if (params?.order) search.set('order', params.order);
+  if (params?.q) search.set('q', params.q);
+  if (params?.limit) search.set('limit', String(params.limit));
+  return useQuery({
+    queryKey: ['projects', Object.fromEntries(search)],
+    queryFn: () => api.get(`/projects?${search.toString()}`).then((r) => r.data),
+  });
+}
+
+export function useProject(id: number) {
+  return useQuery({
+    queryKey: ['project', id],
+    queryFn: () => api.get(`/projects/${id}`).then((r) => r.data),
+    enabled: !!id,
+  });
+}
+
+export function useUpdateProjectDates(projectId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { projectDueOn?: string; deliveryOn?: string }) =>
+      api.patch(`/projects/${projectId}/dates`, payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project', projectId] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+}
+
+export function useProjectHistory(projectId: number, params?: { limit?: number }) {
+  const limit = params?.limit || 10;
+  const search = new URLSearchParams();
+  search.set('project_id', String(projectId));
+  search.set('limit', String(limit));
+
+  return useQuery({
+    queryKey: ['project', 'history', projectId, limit],
+    queryFn: () => api.get(`/history?${search.toString()}`).then((r) => r.data),
+    enabled: !!projectId,
+  });
+}
+
 // ---- Completed Projects
 export function useCompletedProjects(params?: {
   from?: string; // YYYY-MM-DD
@@ -493,7 +544,8 @@ export function useUndoMutation() {
 export function useCustomerMemos(customerId: number, limit = 20) {
   return useQuery({
     queryKey: ['customer-memos', customerId, limit],
-    queryFn: () => api.get(`/customers/${customerId}/memos`, { params: { limit } }).then(r => r.data),
+    queryFn: () =>
+      api.get(`/customers/${customerId}/memos`, { params: { limit } }).then((r) => r.data),
     enabled: !!customerId,
   });
 }
@@ -501,7 +553,8 @@ export function useCustomerMemos(customerId: number, limit = 20) {
 export function useCreateCustomerMemo(customerId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: string) => api.post(`/customers/${customerId}/memos`, { body }).then(r => r.data),
+    mutationFn: (body: string) =>
+      api.post(`/customers/${customerId}/memos`, { body }).then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customer-memos', customerId] }),
   });
 }
@@ -510,7 +563,10 @@ export function useCreateCustomerMemo(customerId: number) {
 export function useRecentProjectsByCustomer(customerId: number, limit = 10) {
   return useQuery({
     queryKey: ['recent-projects-by-customer', customerId, limit],
-    queryFn: () => api.get(`/customers/${customerId}/recent_projects`, { params: { limit } }).then(r => r.data),
+    queryFn: () =>
+      api
+        .get(`/customers/${customerId}/recent_projects`, { params: { limit } })
+        .then((r) => r.data),
     enabled: !!customerId,
   });
 }
