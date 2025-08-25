@@ -10,9 +10,9 @@ export default function DeliveriesCard() {
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-lg font-bold">納品予定（3件）</h2>
         <div className="flex items-center gap-3">
-          <Link href="/deliveries/tools" className="text-sm underline">
+          {/* <Link href="/deliveries/tools" className="text-sm underline">
             調整ツール
-          </Link>
+          </Link> */}
           <Link href="/history" className="text-sm underline">
             履歴を見る
           </Link>
@@ -27,6 +27,15 @@ export default function DeliveriesCard() {
             const key = `d-${d.id ?? 'x'}-${d.projectId ?? 'p'}-${Number.isFinite(ts) ? ts : idx}`;
             return (
               <li key={key} className="text-sm">
+                <div className="text-gray-600">
+                  {d.scheduledAt
+                    ? new Date(d.scheduledAt).toLocaleTimeString('ja-JP', {
+                        timeZone: 'Asia/Tokyo',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : '時刻未定'}
+                </div>
                 <div className="font-medium">{d.customerName ?? d.title ?? '納品'}</div>
                 <div className="text-gray-600">
                   {new Date(d.date).toLocaleDateString('ja-JP', {
@@ -34,8 +43,7 @@ export default function DeliveriesCard() {
                     month: 'numeric',
                     day: 'numeric',
                   })}
-                  {' / '}
-                  {d.title ?? ''}
+                  {d.title && ` / ${d.title}`}
                 </div>
               </li>
             );

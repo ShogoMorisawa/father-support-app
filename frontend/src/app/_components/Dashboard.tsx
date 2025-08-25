@@ -57,11 +57,20 @@ export default function Dashboard() {
       (a, b) => new Date(a.scheduledAt || 0).getTime() - new Date(b.scheduledAt || 0).getTime(),
     );
 
-  // ---- 今日の納品（期日一致）
+  // ---- 今日の納品（時刻順、時刻未定は後）
   const deliveriesAll: any[] = d?.deliveries ?? [];
   const deliveriesToday = deliveriesAll
     .filter((x) => x.date === today)
-    .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+    .sort((a, b) => {
+      // 時刻が設定されている場合は時刻順、時刻未定は後
+      if (a.scheduledAt && b.scheduledAt) {
+        return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+      }
+      if (a.scheduledAt) return -1;
+      if (b.scheduledAt) return 1;
+      // 時刻未定同士はタイトル順
+      return String(a.title || '').localeCompare(String(b.title || ''));
+    });
 
   return (
     <div className="space-y-4">
@@ -71,15 +80,12 @@ export default function Dashboard() {
           <Link href="/estimates/new" className="underline">
             見積を作成
           </Link>
-          <Link href="/deliveries/tools" className="underline">
+          {/* <Link href="/deliveries/tools" className="underline">
             納品調整
-          </Link>
-          <Link href="/calendar" className="underline">
-            カレンダー
-          </Link>
+          </Link> */}
         </nav>
       </div>
-      <div className="text-sm text-gray-600">対象日：{d?.date ?? today}</div>
+      <div className="text-sm text-gray-600">今日の日付：{d?.date ?? today}</div>
 
       {/* 今日の見積 */}
       <section className="rounded border bg-white p-4">
@@ -109,9 +115,9 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-bold">今日の納品</h2>
           <div className="flex items-center gap-3">
-            <Link href="/deliveries/tools" className="text-sm underline">
+            {/* <Link href="/deliveries/tools" className="text-sm underline">
               調整ツール
-            </Link>
+            </Link> */}
             <Link href="/deliveries" className="text-sm underline">
               一覧へ
             </Link>
@@ -123,16 +129,16 @@ export default function Dashboard() {
           <ul className="space-y-2">
             {deliveriesToday.map((dl) => (
               <li key={`del-${dl.id}`} className="text-sm">
+                <div className="text-gray-600">
+                  {dl.scheduledAt ? jstTime(dl.scheduledAt) : '時刻未定'}
+                </div>
                 <div className="font-medium">{dl.customerName ?? '-'}</div>
-                <div className="text-gray-600">{dl.title ?? '納品'}</div>
+                {dl.title && <div className="text-xs text-gray-600">{dl.title}</div>}
               </li>
             ))}
           </ul>
         )}
       </section>
-
-      {/* ここから下の"なんでもカード"はホームから撤去し、メニュー遷移に一本化 */}
-      {/* 顧客 / 在庫 / 作業 / 履歴 などはそれぞれのページへ */}
     </div>
   );
 }

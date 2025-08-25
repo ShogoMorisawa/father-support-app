@@ -54,15 +54,21 @@ function groupDeliveries(items: any[]): GroupedDeliveries {
     }
   });
 
-  // 各グループ内を日付順でソート（既にAPIでソート済みだが念のため）
-  const sortByDate = (a: any, b: any) => {
+  // 各グループ内を時刻順でソート（時刻未定は後）
+  const sortByScheduledAt = (a: any, b: any) => {
+    if (a.scheduledAt && b.scheduledAt) {
+      return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+    }
+    if (a.scheduledAt) return -1;
+    if (b.scheduledAt) return 1;
+    // 時刻未定同士は日付順
     if (!a.date || !b.date) return 0;
     return a.date.localeCompare(b.date);
   };
 
-  groups.today.sort(sortByDate);
-  groups.tomorrow.sort(sortByDate);
-  groups.later.sort(sortByDate);
+  groups.today.sort(sortByScheduledAt);
+  groups.tomorrow.sort(sortByScheduledAt);
+  groups.later.sort(sortByScheduledAt);
 
   return groups;
 }
@@ -73,7 +79,7 @@ export default function DeliveriesPage() {
   // すべての納品を取得（クライアント側でフィルタリング）
   const { data, isLoading, error } = useDeliveries({
     status: 'all',
-    order: 'date.asc',
+    order: 'scheduled_at.asc',
     limit: 500,
   });
 
@@ -161,9 +167,20 @@ export default function DeliveriesPage() {
         href={`/deliveries/${delivery.id}`}
         className="block rounded border bg-white p-4 space-y-3 hover:shadow-md transition-shadow"
       >
-        {/* 1行目：顧客名（太字）＋ステータスバッジ */}
+        {/* 1行目：時刻＋顧客名（太字）＋ステータスバッジ */}
         <div className="flex items-center justify-between">
-          <div className="font-bold text-lg">{delivery.customerName}</div>
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-gray-600">
+              {delivery.scheduledAt
+                ? new Date(delivery.scheduledAt).toLocaleTimeString('ja-JP', {
+                    timeZone: 'Asia/Tokyo',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '時刻未定'}
+            </div>
+            <div className="font-bold text-lg">{delivery.customerName}</div>
+          </div>
           {renderStatusBadge(delivery)}
         </div>
 
@@ -188,9 +205,9 @@ export default function DeliveriesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">納品一覧</h1>
         <div className="flex items-center gap-3">
-          <Link href="/deliveries/tools" className="text-sm underline">
+          {/* <Link href="/deliveries/tools" className="text-sm underline">
             調整ツール
-          </Link>
+          </Link> */}
         </div>
       </div>
 
