@@ -13,7 +13,12 @@ module Tasks
       def call
         ActiveRecord::Base.transaction do
           t = ::Task.lock.find(@task_id)
-          return conflict!("not_done") unless t.status == "done"
+          
+          # 冪等性チェック：既に未完了の場合は成功として返す
+          if t.status != "done"
+            return Result.new(ok: true, task: t)
+          end
+          
           # 在庫戻し
           t.task_materials.each do |tm|
             qty = tm.effective_qty_for_inventory
@@ -22,7 +27,10 @@ module Tasks
             next unless m
             m.update!(current_qty: (m.current_qty.to_d + qty.to_d))
           end
-          t.update!(status: "todo")
+          
+          # ステータスとprepared_atを同時更新
+          t.update!(status: "todo", prepared_at: nil)
+          
           changes = t.task_materials.filter_map do |tm|
             q = tm.effective_qty_for_inventory
             next if q <= 0
