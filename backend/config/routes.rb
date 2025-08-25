@@ -15,7 +15,7 @@ Rails.application.routes.draw do
     post "photos/attach",  to: "photos#attach"
     post "photos/detach",  to: "photos#detach"  # Undo用（inverse向け）
 
-    resources :projects, only: [:index] do
+    resources :projects, only: [:index, :show] do
       # プロジェクト単位の写真一覧/削除
       resources :photos, only: [:index, :destroy], module: :projects
       # /api/projects/:project_id/complete
@@ -25,6 +25,9 @@ Rails.application.routes.draw do
       
       # /api/projects/:project_id/tasks/bulk-create
       post "tasks/bulk-create", to: "projects/tasks/bulk_creates#create"
+      
+      # /api/projects/:project_id/dates
+      patch :dates, to: "projects/dates#update"
     end
 
     # 完了済み案件一覧

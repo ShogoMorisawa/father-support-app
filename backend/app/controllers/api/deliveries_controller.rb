@@ -51,36 +51,9 @@ module Api
           projectDueOn: delivery.project&.due_on&.to_s,
           completedAt: delivery.completed_at&.iso8601,
           tasks: delivery.project&.tasks&.map { |t|
-            # 在庫プレビューを計算
-            insufficient_materials = []
-            stock_sufficient = true
+            # 在庫チェックサービスを使用
+            stock_check = Inventory::CheckTaskMaterials.call(task_ids: [t.id]).first
             
-            t.task_materials.each do |tm|
-              qty_planned = tm.qty_planned
-              next unless qty_planned && qty_planned > 0
-              
-              material = tm.material_id ? Material.find_by(id: tm.material_id) : Material.find_by(name: tm.material_name)
-              if material
-                available_qty = material.current_qty || 0
-                if available_qty < qty_planned
-                  insufficient_materials << {
-                    materialName: material.name,
-                    needed: qty_planned,
-                    available: available_qty
-                  }
-                  stock_sufficient = false
-                end
-              else
-                # 材料が見つからない場合は不足扱い
-                insufficient_materials << {
-                  materialName: tm.material_name,
-                  needed: qty_planned,
-                  available: 0
-                }
-                stock_sufficient = false
-              end
-            end
-
             {
               id: t.id,
               title: t.title,
@@ -88,8 +61,14 @@ module Api
               dueOn: t.due_on&.to_s,
               status: t.status,
               preparedAt: t.prepared_at&.to_s,
-              stockSufficient: stock_sufficient,
-              insufficientMaterials: insufficient_materials,
+              stockSufficient: stock_check&.dig(:stock_sufficient) || true,
+              insufficientMaterials: stock_check&.dig(:insufficient_materials)&.map { |im|
+                {
+                  materialName: im[:name],
+                  needed: im[:required],
+                  available: im[:available]
+                }
+              } || [],
               materials: t.task_materials&.map { |tm|
                 {
                   materialName: tm.material_name,
