@@ -55,7 +55,10 @@ Rails.application.routes.draw do
     get "materials/low", to: "materials#low"
 
     get "customers/search", to: "customers#search"
-    resources :customers, only: [ :index, :show, :create, :update ]
+    resources :customers, only: [ :index, :show, :create, :update ] do
+      resources :memos, only: [:index, :create], module: :customers
+      get :recent_projects, to: "customers/recent_projects#index"
+    end
 
     resources :tasks, only: [ :index ] do
       # /api/tasks/:id/complete

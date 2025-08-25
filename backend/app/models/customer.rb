@@ -1,6 +1,7 @@
 class Customer < ApplicationRecord
     has_many :projects, dependent: :restrict_with_exception
     has_many :estimates, dependent: :restrict_with_exception
+    has_many :memos, dependent: :destroy
 
     validates :name, presence: true, length: { maximum: 100 }
     validates :name_kana, length: { maximum: 100 }, allow_blank: true

@@ -488,3 +488,29 @@ export function useUndoMutation() {
     },
   });
 }
+
+// ---- Customer Memos
+export function useCustomerMemos(customerId: number, limit = 20) {
+  return useQuery({
+    queryKey: ['customer-memos', customerId, limit],
+    queryFn: () => api.get(`/customers/${customerId}/memos`, { params: { limit } }).then(r => r.data),
+    enabled: !!customerId,
+  });
+}
+
+export function useCreateCustomerMemo(customerId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) => api.post(`/customers/${customerId}/memos`, { body }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['customer-memos', customerId] }),
+  });
+}
+
+// ---- Recent Projects by Customer
+export function useRecentProjectsByCustomer(customerId: number, limit = 10) {
+  return useQuery({
+    queryKey: ['recent-projects-by-customer', customerId, limit],
+    queryFn: () => api.get(`/customers/${customerId}/recent_projects`, { params: { limit } }).then(r => r.data),
+    enabled: !!customerId,
+  });
+}

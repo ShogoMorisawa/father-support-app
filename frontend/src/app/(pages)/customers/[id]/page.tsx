@@ -1,7 +1,7 @@
 'use client';
 import Toast from '@/app/_components/Toast';
-import { PhoneLink, AddressLink, QuickActionButton } from '@/app/_components/CustomerInfo';
-import { useCustomer, useUpdateCustomer } from '@/lib/api/hooks';
+import { QuickActionButton } from '@/app/_components/CustomerInfo';
+import { useCustomer, useUpdateCustomer, useCustomerMemos, useCreateCustomerMemo, useRecentProjectsByCustomer } from '@/lib/api/hooks';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -35,211 +35,20 @@ function StatsSummary({ stats }: { stats: any }) {
   );
 }
 
-// 最近の活動タイムライン
-function RecentActivity({ customerId, stats }: { customerId: number; stats: any }) {
-  // 実際のデータがある場合はそれを使用、ない場合は仮のデータ
-  if (stats && (stats.estimatesCount > 0 || stats.projectsCount > 0)) {
-    return (
-      <div className="rounded border bg-white p-4">
-        <div className="font-medium mb-3 text-lg">最近の活動</div>
-        <div className="text-sm text-gray-600 mb-3">
-          見積: {stats.estimatesCount}件、案件: {stats.projectsCount}件
-        </div>
-        <div className="space-y-3">
-          {stats.activeProjectsCount > 0 && (
-            <div className="flex items-start gap-3 p-2 bg-blue-50 rounded">
-              <div className="text-sm text-blue-600 font-medium">
-                進行中
-              </div>
-              <div className="flex-1">
-                <div className="font-medium">進行中の作業</div>
-                <div className="text-sm text-gray-600">
-                  {stats.activeProjectsCount}件の作業が進行中
-                </div>
-              </div>
-            </div>
-          )}
-          {stats.deliveriesPendingCount > 0 && (
-            <div className="flex items-start gap-3 p-2 bg-orange-50 rounded">
-              <div className="text-sm text-orange-600 font-medium">
-                未納品
-              </div>
-              <div className="flex-1">
-                <div className="font-medium">納品待ち</div>
-                <div className="text-sm text-gray-600">
-                  {stats.deliveriesPendingCount}件の納品が待機中
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="mt-3 pt-3 border-t">
-          <Link
-            href={`/history?customer=${customerId}`}
-            className="text-blue-600 hover:underline text-sm"
-          >
-            すべての履歴を見る →
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
-  // 仮のデータ（後でAPIから取得）
-  const activities = [
-    {
-      id: 1,
-      date: '2025/08/25',
-      time: '10:30',
-      type: '見積作成',
-      description: '障子 3枚',
-      link: '/estimates/1'
-    },
-    {
-      id: 2,
-      date: '2025/08/27',
-      time: '17:00',
-      type: '作業完了',
-      description: '網戸 2枚 在庫: 紙 −2',
-      link: '/projects/2'
-    },
-    {
-      id: 3,
-      date: '2025/08/28',
-      time: '15:10',
-      type: '納品完了',
-      description: '案件完了',
-      link: '/deliveries/3'
-    }
-  ];
-  
-  return (
-    <div className="rounded border bg-white p-4">
-      <div className="font-medium mb-3 text-lg">最近の活動</div>
-      <div className="space-y-3">
-        {activities.map((activity) => (
-          <div key={activity.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded">
-            <div className="text-sm text-gray-500 min-w-[80px]">
-              {activity.date}<br />
-              {activity.time}
-            </div>
-            <div className="flex-1">
-              <div className="font-medium">{activity.type}</div>
-              <div className="text-sm text-gray-600">{activity.description}</div>
-            </div>
-            <Link
-              href={activity.link}
-              className="text-blue-600 hover:underline text-sm"
-            >
-              詳細 →
-            </Link>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 pt-3 border-t">
-        <Link
-          href={`/history?customer=${customerId}`}
-          className="text-blue-600 hover:underline text-sm"
-        >
-          すべての履歴を見る →
-        </Link>
-      </div>
-    </div>
-  );
-}
 
-// 関連リスト（ミニ一覧）
-function RelatedLists({ customerId, stats }: { customerId: number; stats: any }) {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* 未完了の作業 */}
-      <div className="rounded border bg-white p-4">
-        <div className="font-medium mb-2">未完了の作業</div>
-        <div className="text-sm text-gray-600 mb-2">
-          期日順、最新3件
-        </div>
-        {stats?.activeProjectsCount > 0 ? (
-          <div className="space-y-2">
-            <div className="text-sm">
-              <div className="font-medium">進行中の作業</div>
-              <div className="text-gray-500">{stats.activeProjectsCount}件</div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-sm text-gray-500">進行中の作業はありません</div>
-        )}
-        <div className="mt-3 pt-2 border-t">
-          <Link
-            href={`/tasks?customer=${customerId}`}
-            className="text-blue-600 hover:underline text-sm"
-          >
-            すべて見る →
-          </Link>
-        </div>
-      </div>
 
-      {/* 未完了の納品 */}
-      <div className="rounded border bg-white p-4">
-        <div className="font-medium mb-2">未完了の納品</div>
-        <div className="text-sm text-gray-600 mb-2">
-          期日順、最新3件
-        </div>
-        {stats?.deliveriesPendingCount > 0 ? (
-          <div className="space-y-2">
-            <div className="text-sm">
-              <div className="font-medium">納品待ち</div>
-              <div className="text-gray-500">{stats.deliveriesPendingCount}件</div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-sm text-gray-500">未納品はありません</div>
-        )}
-        <div className="mt-3 pt-2 border-t">
-          <Link
-            href={`/deliveries?customer=${customerId}`}
-            className="text-blue-600 hover:underline text-sm"
-          >
-            すべて見る →
-          </Link>
-        </div>
-      </div>
-
-      {/* 見積 */}
-      <div className="rounded border bg-white p-4">
-        <div className="font-medium mb-2">見積</div>
-        <div className="text-sm text-gray-600 mb-2">
-          直近3件
-        </div>
-        {stats?.estimatesCount > 0 ? (
-          <div className="space-y-2">
-            <div className="text-sm">
-              <div className="font-medium">見積件数</div>
-              <div className="text-gray-500">{stats.estimatesCount}件</div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-sm text-gray-500">見積はありません</div>
-        )}
-        <div className="mt-3 pt-2 border-t">
-          <Link
-            href={`/estimates?customer=${customerId}`}
-            className="text-blue-600 hover:underline text-sm"
-          >
-            見積一覧へ →
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function CustomerDetailPage() {
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
   const { data, refetch } = useCustomer(id);
   const update = useUpdateCustomer(id);
+  const { data: memosData } = useCustomerMemos(id, 20);
+  const createMemo = useCreateCustomerMemo(id);
+  const { data: recentProjects } = useRecentProjectsByCustomer(id, 10);
   const [form, setForm] = useState<any>({});
-  const [memo, setMemo] = useState('');
+  const [newMemo, setNewMemo] = useState('');
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -251,7 +60,6 @@ export default function CustomerDetailPage() {
         phone: c.phone ?? '',
         address: c.address ?? '',
       });
-      setMemo(c.memo ?? '');
     }
   }, [data]);
 
@@ -268,14 +76,7 @@ export default function CustomerDetailPage() {
     }
   };
 
-  const handleMemoSave = async () => {
-    try {
-      // メモ更新用のAPI呼び出し（後で実装）
-      setToast('メモを更新しました。');
-    } catch {
-      setToast('メモの更新に失敗しました。');
-    }
-  };
+
 
   if (!customer) {
     return (
@@ -325,7 +126,7 @@ export default function CustomerDetailPage() {
               value={form.phone || ''}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
-            {form.phone && <PhoneLink phone={form.phone} />}
+
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">住所</label>
@@ -334,30 +135,52 @@ export default function CustomerDetailPage() {
               value={form.address || ''}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
             />
-            {form.address && <AddressLink address={form.address} />}
+
           </div>
         </div>
 
-        {/* メモ欄 */}
-        <div>
-          <label className="block text-sm font-medium mb-1">メモ</label>
-          <textarea
-            className="w-full border rounded px-3 py-2 h-20 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            placeholder="作業上の注意点・リピート希望など"
-          />
-          <div className="flex justify-between items-center mt-2">
-            <p className="text-xs text-gray-500">
-              履歴とは別に最新状態を一つ保持
-            </p>
-            <button
-              onClick={handleMemoSave}
-              className="bg-gray-600 text-white px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors"
-            >
-              メモ保存
-            </button>
+        {/* メモ（複数） */}
+        <div className="space-y-3">
+          <div className="font-medium text-lg">メモ</div>
+          <div>
+            <textarea
+              className="w-full border rounded px-3 py-2 h-20 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={newMemo}
+              onChange={(e) => setNewMemo(e.target.value)}
+              placeholder="作業上の注意点・リピート希望など"
+            />
+            <div className="flex justify-end mt-2">
+              <button
+                className="bg-gray-900 text-white px-3 py-2 rounded text-sm disabled:opacity-50"
+                disabled={!newMemo.trim() || createMemo.isPending}
+                onClick={async () => {
+                  try {
+                    await createMemo.mutateAsync(newMemo.trim());
+                    setNewMemo('');
+                    setToast('メモを追加しました。');
+                  } catch {
+                    setToast('メモの追加に失敗しました。');
+                  }
+                }}
+              >
+                {createMemo.isPending ? '保存中…' : 'メモを追加'}
+              </button>
+            </div>
           </div>
+
+          <ul className="divide-y">
+            {(memosData?.items ?? []).map((m: any) => (
+              <li key={m.id} className="py-2">
+                <div className="text-xs text-gray-500 mb-1">
+                  {new Date(m.created_at || m.createdAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
+                </div>
+                <div className="whitespace-pre-wrap">{m.body}</div>
+              </li>
+            ))}
+            {(memosData?.items ?? []).length === 0 && (
+              <li className="py-4 text-sm text-gray-500">メモはまだありません。</li>
+            )}
+          </ul>
         </div>
 
         <button
@@ -371,11 +194,45 @@ export default function CustomerDetailPage() {
       {/* 統計サマリー */}
       <StatsSummary stats={stats} />
 
-      {/* 最近の活動 */}
-      <RecentActivity customerId={id} stats={stats} />
+      {/* 最近の案件 */}
+      <div className="rounded border bg-white p-4">
+        <div className="font-medium mb-3 text-lg">最近の案件</div>
+        <ul className="divide-y">
+          {(recentProjects?.items ?? []).map((p: any) => (
+            <li key={p.id} className="py-2 flex items-center justify-between">
+              <div>
+                <div className="font-medium">{p.title ?? `案件 #${p.id}`}</div>
+                <div className="text-xs text-gray-500">
+                  最終更新：
+                  {p.lastActivityAt
+                    ? new Date(p.lastActivityAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
+                    : '—'}
+                  {p.lastActivitySummary ? ` / ${p.lastActivitySummary}` : ''}
+                </div>
+                <div className="text-xs text-gray-500">
+                  期日：{p.dueOn ?? '—'}
+                </div>
+                <div className="mt-1">
+                  <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs
+                    ${p.status === 'completed' ? 'bg-green-100 text-green-800' :
+                       p.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                       'bg-gray-100 text-gray-800'}`}>
+                    {p.status === 'completed' ? '完了' : p.status === 'in_progress' ? '進行中' : p.status}
+                  </span>
+                </div>
+              </div>
+              <Link href={`/projects/${p.id}`} className="text-blue-600 hover:underline text-sm">
+                詳細 →
+              </Link>
+            </li>
+          ))}
+          {(recentProjects?.items ?? []).length === 0 && (
+            <li className="py-4 text-sm text-gray-500">最近の案件はありません。</li>
+          )}
+        </ul>
+      </div>
 
-      {/* 関連リスト */}
-      <RelatedLists customerId={id} stats={stats} />
+
 
       {/* クイックアクション */}
       <div className="rounded border bg-white p-4">
