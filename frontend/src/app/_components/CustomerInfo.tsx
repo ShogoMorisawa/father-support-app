@@ -23,7 +23,13 @@ export function PhoneLink({ phone }: { phone: string | null }) {
 }
 
 // 検索ハイライト付きの電話番号リンクコンポーネント
-export function HighlightedPhoneLink({ phone, searchQuery }: { phone: string | null; searchQuery: string }) {
+export function HighlightedPhoneLink({
+  phone,
+  searchQuery,
+}: {
+  phone: string | null;
+  searchQuery: string;
+}) {
   if (!phone) return <span className="text-gray-400">-</span>;
 
   const telLink = phone.replace(/[^\d]/g, '');
@@ -31,18 +37,18 @@ export function HighlightedPhoneLink({ phone, searchQuery }: { phone: string | n
   // 検索クエリでハイライト処理
   const highlightText = (text: string, query: string) => {
     if (!query.trim()) return text;
-    
+
     const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
+
+    return parts.map((part, index) =>
       regex.test(part) ? (
         <mark key={index} className="bg-yellow-200 px-1 rounded">
           {part}
         </mark>
       ) : (
         part
-      )
+      ),
     );
   };
 
