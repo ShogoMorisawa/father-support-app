@@ -1,7 +1,13 @@
 'use client';
-import Toast from '@/app/_components/Toast';
 import { QuickActionButton } from '@/app/_components/CustomerInfo';
-import { useCustomer, useUpdateCustomer, useCustomerMemos, useCreateCustomerMemo, useRecentProjectsByCustomer } from '@/lib/api/hooks';
+import Toast from '@/app/_components/Toast';
+import {
+  useCreateCustomerMemo,
+  useCustomer,
+  useCustomerMemos,
+  useRecentProjectsByCustomer,
+  useUpdateCustomer,
+} from '@/lib/api/hooks';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -9,7 +15,7 @@ import { useEffect, useState } from 'react';
 // 統計サマリーカード
 function StatsSummary({ stats }: { stats: any }) {
   if (!stats) return null;
-  
+
   return (
     <div className="rounded border bg-white p-4">
       <div className="font-medium mb-3 text-lg">サマリー</div>
@@ -27,17 +33,15 @@ function StatsSummary({ stats }: { stats: any }) {
           <div className="text-sm text-gray-600">未納品</div>
         </div>
         <div className="text-center">
-          <div className="text-2xl font-bold text-green-600">{stats.completedProjectsCount || 0}</div>
+          <div className="text-2xl font-bold text-green-600">
+            {stats.completedProjectsCount || 0}
+          </div>
           <div className="text-sm text-gray-600">完了案件</div>
         </div>
       </div>
     </div>
   );
 }
-
-
-
-
 
 export default function CustomerDetailPage() {
   const params = useParams<{ id: string }>();
@@ -75,8 +79,6 @@ export default function CustomerDetailPage() {
       setToast('更新に失敗しました。入力内容をご確認ください。');
     }
   };
-
-
 
   if (!customer) {
     return (
@@ -126,7 +128,6 @@ export default function CustomerDetailPage() {
               value={form.phone || ''}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
-
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">住所</label>
@@ -135,7 +136,6 @@ export default function CustomerDetailPage() {
               value={form.address || ''}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
             />
-
           </div>
         </div>
 
@@ -172,7 +172,9 @@ export default function CustomerDetailPage() {
             {(memosData?.items ?? []).map((m: any) => (
               <li key={m.id} className="py-2">
                 <div className="text-xs text-gray-500 mb-1">
-                  {new Date(m.created_at || m.createdAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
+                  {new Date(m.created_at || m.createdAt).toLocaleString('ja-JP', {
+                    timeZone: 'Asia/Tokyo',
+                  })}
                 </div>
                 <div className="whitespace-pre-wrap">{m.body}</div>
               </li>
@@ -209,15 +211,23 @@ export default function CustomerDetailPage() {
                     : '—'}
                   {p.lastActivitySummary ? ` / ${p.lastActivitySummary}` : ''}
                 </div>
-                <div className="text-xs text-gray-500">
-                  期日：{p.dueOn ?? '—'}
-                </div>
+                <div className="text-xs text-gray-500">期日：{p.dueOn ?? '—'}</div>
                 <div className="mt-1">
-                  <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs
-                    ${p.status === 'completed' ? 'bg-green-100 text-green-800' :
-                       p.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                       'bg-gray-100 text-gray-800'}`}>
-                    {p.status === 'completed' ? '完了' : p.status === 'in_progress' ? '進行中' : p.status}
+                  <span
+                    className={`inline-flex items-center rounded px-2 py-0.5 text-xs
+                    ${
+                      p.status === 'completed'
+                        ? 'bg-green-100 text-green-800'
+                        : p.status === 'in_progress'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}
+                  >
+                    {p.status === 'completed'
+                      ? '完了'
+                      : p.status === 'in_progress'
+                      ? '進行中'
+                      : p.status}
                   </span>
                 </div>
               </div>
@@ -231,8 +241,6 @@ export default function CustomerDetailPage() {
           )}
         </ul>
       </div>
-
-
 
       {/* クイックアクション */}
       <div className="rounded border bg-white p-4">
@@ -248,10 +256,7 @@ export default function CustomerDetailPage() {
           >
             この顧客で見積作成
           </QuickActionButton>
-          <QuickActionButton
-            href={`/projects?customer=${id}`}
-            variant="green"
-          >
+          <QuickActionButton href={`/projects?customer=${id}`} variant="green">
             案件一覧を見る
           </QuickActionButton>
           <QuickActionButton
