@@ -5,7 +5,10 @@ module Api
 
         # POST /api/projects/:project_id/complete
         def create
-          result = ::Projects::CompleteService.call(project_id: params[:project_id])
+          result = ::Projects::CompleteService.call(
+            project_id: params[:project_id],
+            completed_at: params[:completed_at]
+          )
           if result.ok
             render_ok(data: {
               projectId: result.project.id,

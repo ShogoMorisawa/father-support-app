@@ -1,7 +1,8 @@
 'use client';
+import EditEstimateScheduleModal from '@/app/_components/EditEstimateScheduleModal';
 import EstimateStatusBadge from '@/app/_components/EstimateStatusBadge';
 import Toast from '@/app/_components/Toast';
-import { useCompleteEstimate, useEstimates } from '@/lib/api/hooks';
+import { useCompleteEstimate, useEstimates, useUpdateEstimate } from '@/lib/api/hooks';
 import { isoToJstHm, isoToJstYmd, todayJstYmd, tomorrowJstYmd } from '@/lib/time';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -19,8 +20,14 @@ export default function EstimatesPage() {
   const { data, refetch } = useEstimates(undefined, 20);
   const items: any[] = data?.data?.items ?? [];
   const complete = useCompleteEstimate();
-  const [toast, setToast] = useState<string | null>(null);
+  const updateEstimate = useUpdateEstimate();
   const [activeTab, setActiveTab] = useState<TabType>('pending');
+  const [toast, setToast] = useState<string | null>(null);
+  const [editModal, setEditModal] = useState<{
+    isOpen: boolean;
+    estimateId: number;
+    scheduledAt: string;
+  } | null>(null);
   const router = useRouter();
 
   // タブに応じた見積もりのフィルタリング
@@ -139,37 +146,58 @@ export default function EstimatesPage() {
           <div className="font-medium text-lg">{e.customer?.name ?? '（無名）'}</div>
           {e.customer?.phone && (
             <div className="text-sm text-gray-700">
-              {phoneHref ? (
-                <a className="underline hover:text-blue-600" href={phoneHref}>
-                  {e.customer.phone}
-                </a>
-              ) : (
-                e.customer.phone
-              )}
+              <span
+                className="underline hover:text-blue-600 cursor-pointer"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  const phoneHref = getPhoneHref(e.customer?.phone);
+                  if (phoneHref) {
+                    window.open(phoneHref, '_self');
+                  }
+                }}
+              >
+                {e.customer.phone}
+              </span>
             </div>
           )}
           {e.customer?.address && (
             <div className="text-sm text-gray-600">
               {e.customer.address}
-              {mapsHref && (
-                <a
-                  className="ml-2 underline hover:text-blue-600"
-                  href={mapsHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  📍地図で開く
-                </a>
-              )}
+              <span
+                className="ml-2 underline hover:text-blue-600 cursor-pointer"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  const mapsHref = getMapsHref(e.customer?.address);
+                  if (mapsHref) {
+                    window.open(mapsHref, '_blank');
+                  }
+                }}
+              >
+                📍地図で開く
+              </span>
             </div>
           )}
         </div>
 
-        {/* アクションボタン（予約中のみ表示） */}
-        {canAct && (
-          <div className="flex gap-3 pt-2">
+        {/* アクションボタン群（右端） */}
+        <div className="flex items-center justify-end gap-2 pt-2">
+          {/* 日時変更ボタン（予約中のみ） */}
+          {canAct && (
             <button
-              className="flex-1 px-4 py-3 rounded bg-black text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-2 rounded border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              onClick={() =>
+                setEditModal({ isOpen: true, estimateId: e.id, scheduledAt: e.scheduledAt })
+              }
+              disabled={updateEstimate.isPending}
+            >
+              日時変更
+            </button>
+          )}
+
+          {/* 成立ボタン（予約中のみ） */}
+          {canAct && (
+            <button
+              className="px-3 py-2 rounded bg-black text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={complete.isPending}
               onClick={async () => {
                 try {
@@ -187,31 +215,44 @@ export default function EstimatesPage() {
                     setToast('見積を成立しました。');
                     refetch();
                   }
-                } catch {
-                  setToast('操作が競合しました。少し時間をおいて再試行してください');
+                } catch (error: any) {
+                  const errorMessage =
+                    error.response?.data?.error?.message ||
+                    '操作が競合しました。少し時間をおいて再試行してください';
+                  setToast(errorMessage);
                 }
               }}
             >
-              成立
+              {complete.isPending ? '処理中…' : '成立'}
             </button>
+          )}
+
+          {/* 不成立ボタン（予約中のみ） */}
+          {canAct && (
             <button
-              className="flex-1 px-4 py-3 rounded border border-gray-300 text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-2 rounded border border-red-300 text-red-700 text-sm font-medium hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={complete.isPending}
               onClick={async () => {
                 if (!confirm('この見積を不成立にします。よろしいですか？')) return;
                 try {
-                  await complete.mutateAsync({ id: e.id, accepted: false });
+                  await complete.mutateAsync({
+                    id: e.id,
+                    accepted: false,
+                  });
                   setToast('見積を不成立にしました。');
                   refetch();
-                } catch {
-                  setToast('操作が競合しました。少し時間をおいて再試行してください');
+                } catch (error: any) {
+                  const errorMessage =
+                    error.response?.data?.error?.message ||
+                    '操作が競合しました。少し時間をおいて再試行してください';
+                  setToast(errorMessage);
                 }
               }}
             >
-              不成立
+              {complete.isPending ? '処理中…' : '不成立'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
@@ -294,6 +335,30 @@ export default function EstimatesPage() {
         )}
       </div>
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+
+      {/* 日時変更モーダル */}
+      {editModal && (
+        <EditEstimateScheduleModal
+          isOpen={editModal.isOpen}
+          onClose={() => setEditModal(null)}
+          initialScheduledAt={editModal.scheduledAt}
+          isPending={updateEstimate.isPending}
+          onSubmit={async (scheduledAt) => {
+            try {
+              await updateEstimate.mutateAsync({
+                id: editModal.estimateId,
+                scheduledAt: new Date(scheduledAt).toISOString(),
+              });
+              setToast('見積日時を更新しました。');
+              setEditModal(null);
+            } catch (error: any) {
+              const errorMessage =
+                error.response?.data?.error?.message || '日時更新に失敗しました。';
+              setToast(errorMessage);
+            }
+          }}
+        />
+      )}
     </main>
   );
 }

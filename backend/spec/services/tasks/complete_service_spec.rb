@@ -49,14 +49,16 @@ RSpec.describe Tasks::CompleteService, type: :service do
     end
 
     context "冪等性" do
-      it "既に完了済みの場合は成功として返す" do
+      it "既に完了済みの場合は競合エラーを返す" do
         # 最初の完了
         described_class.call(task_id: task.id)
         
-        # 2回目の完了（冪等性チェック）
+        # 2回目の完了（競合エラー）
         result = described_class.call(task_id: task.id)
         
-        expect(result.ok).to be true
+        expect(result.ok).to be false
+        expect(result.error_code).to eq("conflict")
+        expect(result.error_message).to eq("タスクは既に完了済みです")
         expect(result.task.reload.status).to eq("done")
         
         # 在庫は2回目で減算されない

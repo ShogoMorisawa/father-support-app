@@ -40,7 +40,7 @@ export function useHistory(limit = 10) {
 
 // ---- Deliveries
 export function useDeliveries(opts?: {
-  status?: 'pending' | 'delivered' | 'cancelled';
+  status?: 'pending' | 'delivered' | 'cancelled' | 'all';
   order?: 'date.asc' | 'date.desc';
   limit?: number;
   enabled?: boolean;
@@ -82,6 +82,19 @@ export function useTogglePrepared(deliveryId: number) {
       qc.invalidateQueries({ queryKey: ['dashboard'] });
       qc.invalidateQueries({ queryKey: ['history'] });
       qc.invalidateQueries({ queryKey: ['tasks'] }); // ← 追加
+    },
+  });
+}
+
+export function useRevertDeliveryComplete(deliveryId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post(`/deliveries/${deliveryId}/revert_complete`, {}).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['delivery', deliveryId] });
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
     },
   });
 }
@@ -208,6 +221,7 @@ export function useCompleteProject(projectId: number) {
     onSuccess: () => {
       // 影響範囲のみ無効化（過剰な全体無効化は避ける）
       qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['delivery'] }); // 納品詳細のキャッシュも無効化
       qc.invalidateQueries({ queryKey: ['dashboard'] });
       qc.invalidateQueries({ queryKey: ['history'] });
       qc.invalidateQueries({ queryKey: ['tasks'] });
@@ -433,26 +447,30 @@ export function useCreateEstimate() {
 export function useCompleteEstimate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      accepted,
-      priceCents,
-      projectTitle,
-      dueOn,
-    }: {
+    mutationFn: (payload: {
       id: number;
       accepted: boolean;
       priceCents?: number;
       projectTitle?: string;
       dueOn?: string;
-    }) =>
-      api
-        .post(`/estimates/${id}/complete`, { accepted, priceCents, projectTitle, dueOn })
-        .then((r) => r.data),
+    }) => api.post(`/estimates/${payload.id}/complete`, payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['estimates'] });
-      qc.invalidateQueries({ queryKey: ['history'] });
-      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useUpdateEstimate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      id: number;
+      scheduledAt?: string;
+      customerPatch?: any; // 将来の拡張用
+    }) => api.patch(`/estimates/${payload.id}`, payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['estimates'] });
     },
   });
 }

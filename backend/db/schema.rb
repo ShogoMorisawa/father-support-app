@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_20_000100) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_25_090501) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -47,7 +47,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_20_000100) do
     t.string "title"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "completed_at"
     t.index "project_id, date, COALESCE(title, ''::character varying)", name: "ux_deliveries_project_date_title", unique: true
+    t.index ["completed_at"], name: "index_deliveries_on_completed_at"
     t.index ["project_id", "date"], name: "index_deliveries_on_project_id_and_date"
     t.index ["project_id"], name: "index_deliveries_on_project_id"
     t.index ["title"], name: "idx_deliveries_title_trgm", opclass: :gin_trgm_ops, using: :gin
@@ -143,6 +145,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_20_000100) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "completed_at"
+    t.index ["completed_at"], name: "index_projects_on_completed_at"
     t.index ["customer_id", "status"], name: "index_projects_on_customer_id_and_status"
     t.index ["customer_id"], name: "index_projects_on_customer_id"
     t.check_constraint "status::text = ANY (ARRAY['in_progress'::character varying::text, 'delivery_scheduled'::character varying::text, 'completed'::character varying::text])", name: "chk_projects_status"
