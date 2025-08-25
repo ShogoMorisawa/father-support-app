@@ -41,7 +41,7 @@ export function useHistory(limit = 10) {
 // ---- Deliveries
 export function useDeliveries(opts?: {
   status?: 'pending' | 'delivered' | 'cancelled' | 'all';
-  order?: 'date.asc' | 'date.desc';
+  order?: 'date.asc' | 'date.desc' | 'scheduled_at.asc' | 'scheduled_at.desc';
   limit?: number;
   enabled?: boolean;
 }) {

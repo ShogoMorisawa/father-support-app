@@ -29,7 +29,7 @@ module Api
         deliveries = Delivery.includes(project: :customer)
                              .where(status: "pending")
                              .where("date >= ?", date)
-                             .order(date: :asc)
+                             .order(Arel.sql("scheduled_at ASC NULLS LAST, date ASC"))
                              .limit(del_lim)
                              .map { |d| serialize_delivery(d) }
 
@@ -92,6 +92,7 @@ module Api
           id: d.id,
           projectId: d.project_id,
           date: d.date&.to_s,
+          scheduledAt: d.scheduled_at&.iso8601,
           status: d.status,
           title: d.title,
           customerName: d.project&.customer&.name

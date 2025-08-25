@@ -8,6 +8,7 @@ export default function Nav() {
 
   const links = [
     { href: '/', label: 'ホーム' },
+    { href: '/projects', label: '案件' },
     { href: '/estimates', label: '見積' },
     { href: '/tasks', label: '作業' },
     { href: '/deliveries', label: '納品' },

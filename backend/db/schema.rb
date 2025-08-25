@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_25_132245) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_25_153205) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -57,10 +57,13 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_132245) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "completed_at"
-    t.index "project_id, date, COALESCE(title, ''::character varying)", name: "ux_deliveries_project_date_title", unique: true
+    t.datetime "scheduled_at"
     t.index ["completed_at"], name: "index_deliveries_on_completed_at"
+    t.index ["project_id", "date", "scheduled_at", "title"], name: "ux_deliveries_project_date_scheduled_title", unique: true
     t.index ["project_id", "date"], name: "index_deliveries_on_project_id_and_date"
+    t.index ["project_id", "scheduled_at"], name: "index_deliveries_on_project_id_and_scheduled_at"
     t.index ["project_id"], name: "index_deliveries_on_project_id"
+    t.index ["status", "scheduled_at"], name: "index_deliveries_on_status_and_scheduled_at"
     t.index ["title"], name: "idx_deliveries_title_trgm", opclass: :gin_trgm_ops, using: :gin
     t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'delivered'::character varying::text, 'cancelled'::character varying::text])", name: "chk_deliveries_status"
   end

@@ -11,7 +11,19 @@ module Api
         rel = Delivery.includes(project: :customer)
         # 特定のステータスのみをフィルタリング
         rel = rel.where(status: status) unless status == "all"
-        rel = (order == "date.desc") ? rel.order(date: :desc) : rel.order(date: :asc)
+        
+        # ソート順の設定
+        case order
+        when "date.desc"
+          rel = rel.order(date: :desc)
+        when "scheduled_at.asc"
+          rel = rel.order(Arel.sql("scheduled_at ASC NULLS LAST, date ASC"))
+        when "scheduled_at.desc"
+          rel = rel.order(Arel.sql("scheduled_at DESC NULLS LAST, date DESC"))
+        else
+          rel = rel.order(Arel.sql("scheduled_at ASC NULLS LAST, date ASC"))
+        end
+        
         rel = rel.limit(limit)
 
         items = rel.map { |d|
@@ -25,6 +37,7 @@ module Api
             id: d.id,
             projectId: d.project_id,
             date: d.date&.to_s,
+            scheduledAt: d.scheduled_at&.iso8601,
             status: d.status,
             title: d.title,
             customerName: d.project&.customer&.name,
@@ -43,6 +56,7 @@ module Api
           id: delivery.id,
           projectId: delivery.project_id,
           date: delivery.date&.to_s,
+          scheduledAt: delivery.scheduled_at&.iso8601,
           status: delivery.status,
           title: delivery.title,
           customerName: delivery.project&.customer&.name,
