@@ -26,8 +26,14 @@ module Projects
           end
         end
 
-        project.update!(status: "delivery_scheduled")
-        ::Delivery.lock.where(project_id: project.id, status: "delivered").update_all(status: "pending")
+        # プロジェクトを再オープン状態に更新（完了日時もクリア）
+        project.update!(status: "delivery_scheduled", completed_at: nil)
+        
+        # 納品も未完了状態に戻す（完了日時もクリア）
+        ::Delivery.lock.where(project_id: project.id, status: "delivered").update_all(
+          status: "pending", 
+          completed_at: nil
+        )
 
         deltas = []
         project.tasks.includes(:task_materials).each do |task|

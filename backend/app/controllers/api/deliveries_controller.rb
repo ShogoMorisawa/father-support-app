@@ -15,13 +15,22 @@ module Api
         rel = rel.limit(limit)
 
         items = rel.map { |d|
+          # タスク集計を取得
+          tasks = d.project&.tasks || []
+          tasks_count = tasks.count
+          prepared_count = tasks.count { |t| t.prepared_at.present? }
+          all_prepared = tasks_count > 0 && prepared_count == tasks_count
+
           {
             id: d.id,
             projectId: d.project_id,
             date: d.date&.to_s,
             status: d.status,
             title: d.title,
-            customerName: d.project&.customer&.name
+            customerName: d.project&.customer&.name,
+            tasksCount: tasks_count,
+            preparedCount: prepared_count,
+            allPrepared: all_prepared
           }
         }
         render_ok(data: { items: items })
@@ -40,7 +49,38 @@ module Api
           customerAddress: delivery.project&.customer&.address,
           projectTitle: delivery.project&.title,
           projectDueOn: delivery.project&.due_on&.to_s,
+          completedAt: delivery.completed_at&.iso8601,
           tasks: delivery.project&.tasks&.map { |t|
+            # 在庫プレビューを計算
+            insufficient_materials = []
+            stock_sufficient = true
+            
+            t.task_materials.each do |tm|
+              qty_planned = tm.qty_planned
+              next unless qty_planned && qty_planned > 0
+              
+              material = tm.material_id ? Material.find_by(id: tm.material_id) : Material.find_by(name: tm.material_name)
+              if material
+                available_qty = material.current_qty || 0
+                if available_qty < qty_planned
+                  insufficient_materials << {
+                    materialName: material.name,
+                    needed: qty_planned,
+                    available: available_qty
+                  }
+                  stock_sufficient = false
+                end
+              else
+                # 材料が見つからない場合は不足扱い
+                insufficient_materials << {
+                  materialName: tm.material_name,
+                  needed: qty_planned,
+                  available: 0
+                }
+                stock_sufficient = false
+              end
+            end
+
             {
               id: t.id,
               title: t.title,
@@ -48,6 +88,8 @@ module Api
               dueOn: t.due_on&.to_s,
               status: t.status,
               preparedAt: t.prepared_at&.to_s,
+              stockSufficient: stock_sufficient,
+              insufficientMaterials: insufficient_materials,
               materials: t.task_materials&.map { |tm|
                 {
                   materialName: tm.material_name,
@@ -58,6 +100,20 @@ module Api
             }
           }
         })
+      end
+
+      def revert_complete
+        result = ::Deliveries::RevertCompleteService.call(delivery_id: params[:id])
+        
+        if result.ok
+          render_ok(data: { message: "納品完了を取り消しました" })
+        else
+          render_error(
+            error_code: result.error_code,
+            message: result.error_message,
+            status: :unprocessable_entity
+          )
+        end
       end
     end
 end

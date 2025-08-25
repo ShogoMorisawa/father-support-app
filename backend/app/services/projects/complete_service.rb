@@ -2,18 +2,24 @@ module Projects
   class CompleteService
     Result = Struct.new(:ok, :project, :error_code, :error_message, :low_stock, keyword_init: true)
 
-    def self.call(project_id:)
-      new(project_id:).call
+    def self.call(project_id:, completed_at: nil)
+      new(project_id:, completed_at: completed_at || Time.current).call
     end
 
-    def initialize(project_id:)
+    def initialize(project_id:, completed_at:)
       @project_id = project_id.to_i
+      @completed_at = completed_at.is_a?(String) ? Time.iso8601(completed_at) : completed_at
     end
 
     def call
       ActiveRecord::Base.transaction do
         project = ::Project.lock.find(@project_id)
         return conflict!("already_completed") if project.status == "completed"
+        
+        # delivery_scheduled状態のプロジェクトは完了可能
+        unless ["in_progress", "delivery_scheduled"].include?(project.status)
+          return conflict!("invalid_status")
+        end
 
         tasks = project.tasks.to_a
         not_done      = tasks.select { |t| t.status != "done" }
@@ -49,10 +55,14 @@ module Projects
           end
         end
 
-        # Delivery を delivered に（プロジェクト単位の運用）
-        ::Delivery.lock.where(project_id: project.id, status: "pending").update_all(status: "delivered")
+        # プロジェクトを完了状態に更新（完了日時も保存）
+        project.update!(status: "completed", completed_at: @completed_at)
 
-        project.update!(status: "completed")
+        # Delivery を delivered に（プロジェクト単位の運用、完了日時も保存）
+        ::Delivery.lock.where(project_id: project.id, status: "pending").update_all(
+          status: "delivered", 
+          completed_at: @completed_at
+        )
 
         deltas = []
         project.tasks.includes(:task_materials).each do |task|
@@ -64,11 +74,12 @@ module Projects
           end
         end
 
+        # 監査ログに完了日時も含める
         ::AuditLog.create!(
           action: "project.complete",
           target_type: "project",
           target_id: project.id,
-          summary: deltas.present? ? "納品完了（在庫: #{deltas.join(' / ')}）" : "納品完了（案件完了）",
+          summary: deltas.present? ? "納品完了（在庫: #{deltas.join(' / ')}）完了日時: #{@completed_at.strftime('%Y/%m/%d %H:%M')}" : "納品完了（案件完了）完了日時: #{@completed_at.strftime('%Y/%m/%d %H:%M')}",
           inverse: { method: "POST", path: "/api/projects/#{project.id}/revert-complete", payload: {} }
         )
 

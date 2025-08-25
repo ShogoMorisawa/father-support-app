@@ -41,5 +41,55 @@ module Api
           render_error(code: "invalid", message: result.error_message, status: 422)
         end
       end
+
+      def update
+        estimate = Estimate.find(params[:id])
+        
+        # scheduledAtパラメータを直接取得
+        scheduled_at = params[:scheduledAt] || params[:scheduled_at]
+        
+        # 更新データを構築
+        update_data = { scheduled_at: scheduled_at }
+        
+        if estimate.update(update_data)
+          # 監査ログに日時変更を記録
+          if estimate.scheduled_at_previously_changed?
+            old_time = estimate.scheduled_at_previous_change[0]
+            new_time = estimate.scheduled_at
+            summary = "見積日時変更（#{old_time&.strftime('%Y/%m/%d %H:%M')} → #{new_time&.strftime('%Y/%m/%d %H:%M')}）"
+            
+            ::AuditLog.create!(
+              action: "estimate.update_schedule",
+              target_type: "estimate",
+              target_id: estimate.id,
+              summary: summary
+            )
+          end
+          
+          render_ok(data: { estimate: estimate })
+        else
+          render_error(message: estimate.errors.full_messages.join(", "), status: :unprocessable_entity)
+        end
+      end
+
+      private
+
+      def estimate_params
+        params.require(:estimate).permit(:scheduled_at, :customer_id)
+      end
+
+      def update_params
+        # トップレベルのパラメータも受け取れるように修正
+        if params[:estimate].present?
+          params.require(:estimate).permit(:scheduled_at)
+        else
+          # トップレベルのパラメータ（scheduledAt）を処理
+          scheduled_at = params[:scheduledAt] || params[:scheduled_at]
+          Rails.logger.info "scheduledAt: #{params[:scheduledAt]}"
+          Rails.logger.info "scheduled_at: #{params[:scheduled_at]}"
+          Rails.logger.info "最終的なscheduled_at: #{scheduled_at}"
+          { scheduled_at: scheduled_at }
+        end
+      end
     end
 end

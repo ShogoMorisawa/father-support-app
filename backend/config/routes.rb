@@ -31,7 +31,11 @@ Rails.application.routes.draw do
     get "projects/completed", to: "projects/completed#index"
 
     # /api/deliveries?status=pending&order=date.asc&limit=200
-    resources :deliveries, only: [ :index, :show ]
+    resources :deliveries, only: [ :index, :show ] do
+      member do
+        post :revert_complete
+      end
+    end
     post "deliveries/bulk-shift", to: "deliveries/bulk_shifts#create"
     post "deliveries/:id/check", to: "deliveries/checks#create"
 
@@ -41,6 +45,9 @@ Rails.application.routes.draw do
     get "dashboard", to: "dashboard#show"
 
     resources :estimates, only: [ :index, :create ] do
+      member do
+        patch :update
+      end
       post :complete, to: "estimates/completions#create"
     end
 
