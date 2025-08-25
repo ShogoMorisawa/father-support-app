@@ -140,6 +140,7 @@ export default function ProjectPhotosPage() {
               const created = ph.createdAt
                 ? new Date(ph.createdAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
                 : '';
+
               return (
                 <li key={ph.id} className="border rounded overflow-hidden bg-white">
                   <div className="aspect-square bg-gray-50 flex items-center justify-center">

@@ -10,6 +10,7 @@ import {
   useRevertCompleteTask,
   useUpdateProjectDates,
 } from '@/lib/api/hooks';
+import { photoUrlFromKey } from '@/lib/photos';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -21,7 +22,9 @@ export default function ProjectDetailPage() {
 
   const { data: projectData, refetch: refetchProject } = useProject(projectId);
   const { data: photosData, refetch: refetchPhotos } = useProjectPhotos(projectId);
-  const { data: historyData } = useProjectHistory(projectId, { limit: 10 });
+  const { data: historyData, refetch: refetchHistory } = useProjectHistory(projectId, {
+    limit: 10,
+  });
 
   const [toast, setToast] = useState<string | null>(null);
   const [processingTasks, setProcessingTasks] = useState<Set<number>>(new Set());
@@ -60,6 +63,7 @@ export default function ProjectDetailPage() {
           setToast('タスクを完了にしました。');
         }
         refetchProject();
+        refetchHistory(); // タスク完了/取り消し後にタイムラインも更新
       } catch (error: any) {
         if (error?.response?.status === 409) {
           setToast('操作が競合しました。少し時間をおいて再試行してください。');
@@ -394,26 +398,33 @@ export default function ProjectDetailPage() {
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {photos.slice(0, 6).map((photo: any) => (
-                <div key={photo.id} className="border rounded overflow-hidden">
-                  <div className="aspect-square bg-gray-50">
-                    <img
-                      src={photo.url}
-                      alt=""
-                      className="object-cover w-full h-full"
-                      onError={(e) => (e.currentTarget.style.opacity = '0.3')}
-                    />
-                  </div>
-                  <div className="p-2 text-xs text-gray-600">
-                    <div className="font-medium">{photo.kind}</div>
-                    <div className="text-gray-500">
-                      {new Date(photo.createdAt).toLocaleDateString('ja-JP', {
-                        timeZone: 'Asia/Tokyo',
-                      })}
+              {photos.slice(0, 6).map((photo: any) => {
+                const url = photoUrlFromKey(photo.key);
+                return (
+                  <div key={photo.id} className="border rounded overflow-hidden">
+                    <div className="aspect-square bg-gray-50">
+                      {url ? (
+                        <img
+                          src={url}
+                          alt=""
+                          className="object-cover w-full h-full"
+                          onError={(e) => (e.currentTarget.style.opacity = '0.3')}
+                        />
+                      ) : (
+                        <div className="p-3 text-xs text-gray-600 break-all">{photo.key}</div>
+                      )}
+                    </div>
+                    <div className="p-2 text-xs text-gray-600">
+                      <div className="font-medium">{photo.kind}</div>
+                      <div className="text-gray-500">
+                        {new Date(photo.createdAt).toLocaleDateString('ja-JP', {
+                          timeZone: 'Asia/Tokyo',
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {photos.length > 6 && (
@@ -436,9 +447,9 @@ export default function ProjectDetailPage() {
           <h2 className="text-lg font-semibold">タイムライン</h2>
         </div>
 
-        {historyData?.items && historyData.items.length > 0 ? (
+        {historyData?.data?.items && historyData.data.items.length > 0 ? (
           <div className="space-y-2">
-            {historyData.items.map((item: any) => (
+            {historyData.data.items.map((item: any) => (
               <div
                 key={item.id}
                 className="flex items-start gap-3 py-2 border-b border-gray-100 last:border-b-0"
