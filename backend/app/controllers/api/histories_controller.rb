@@ -6,7 +6,16 @@ module Api
         
         # project_idフィルターを追加
         if params[:project_id].present?
-          logs = logs.where(target_type: "Project", target_id: params[:project_id])
+          # プロジェクトIDに関連するすべてのAuditLogを取得
+          # - プロジェクト自体の操作
+          # - プロジェクト内のタスクの操作
+          # - プロジェクト内の写真の操作
+          logs = logs.where(
+            "(target_type = 'Project' AND target_id = ?) OR " \
+            "(target_type = 'task' AND target_id IN (SELECT id FROM tasks WHERE project_id = ?)) OR " \
+            "(target_type = 'photo' AND target_id IN (SELECT id FROM project_photos WHERE project_id = ?))",
+            params[:project_id], params[:project_id], params[:project_id]
+          )
         end
 
         items = logs.map do |l|
