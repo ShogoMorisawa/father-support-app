@@ -1,5 +1,6 @@
 class Customer < ApplicationRecord
     has_many :projects, dependent: :restrict_with_exception
+    has_many :estimates, dependent: :restrict_with_exception
 
     validates :name, presence: true, length: { maximum: 100 }
     validates :name_kana, length: { maximum: 100 }, allow_blank: true
@@ -18,7 +19,7 @@ class Customer < ApplicationRecord
     def last_activity_at
       [
         projects.maximum(:updated_at),
-        projects.joins(:estimates).maximum('estimates.updated_at'),
+        estimates.maximum(:updated_at),
         projects.joins(:deliveries).maximum('deliveries.updated_at')
       ].compact.max
     end

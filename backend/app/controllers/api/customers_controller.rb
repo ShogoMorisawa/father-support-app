@@ -14,14 +14,24 @@ module Api
     def index
       order = (params[:order] || "name.asc").to_s
       rel = Customer.all
-      rel = case order
-      when "name.desc"   then rel.order(name: :desc)
-      when "created.desc" then rel.order(created_at: :desc)
-      when "last_activity.desc" then rel.order(last_activity_at: :desc).nulls_last
-      else rel.order(name: :asc)
+      
+      if order == "last_activity.desc"
+        # 最近の活動順はRubyレベルでソート
+        items = rel.includes(:projects, :estimates).map { |c| serialize(c) }
+        items.sort_by! { |item| item[:lastActivityAt] || '1970-01-01' }.reverse!
+        limit = [ (params[:limit] || 200).to_i, 500 ].min
+        items = items.first(limit)
+      else
+        # その他の並び替えはDBレベルでソート
+        rel = case order
+        when "name.desc"   then rel.order(name: :desc)
+        when "created.desc" then rel.order(created_at: :desc)
+        else rel.order(name: :asc)
+        end
+        limit = [ (params[:limit] || 200).to_i, 500 ].min
+        items = rel.limit(limit).map { |c| serialize(c) }
       end
-      limit = [ (params[:limit] || 200).to_i, 500 ].min
-      items = rel.limit(limit).map { |c| serialize(c) }
+      
       render_ok(data: { items: items })
     end
 
