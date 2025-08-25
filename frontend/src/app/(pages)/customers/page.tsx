@@ -1,7 +1,7 @@
 'use client';
 import { useCustomers, useCustomerSearch } from '@/lib/api/hooks';
-import { CustomerName, PhoneLink, AddressLink, StatusBadge, QuickActionButton } from '@/app/_components/CustomerInfo';
-import { SearchHighlight, PhoneSearchHighlight } from '@/app/_components/SearchHighlight';
+import { CustomerName, HighlightedPhoneLink, AddressLink, StatusBadge, QuickActionButton } from '@/app/_components/CustomerInfo';
+import { SearchHighlight } from '@/app/_components/SearchHighlight';
 import Link from 'next/link';
 import { useMemo, useState, useCallback, useEffect } from 'react';
 
@@ -168,12 +168,7 @@ export default function CustomersPage() {
                     <HighlightedCustomerName customer={c} searchQuery={debouncedQ} />
                   </td>
                   <td className="px-3 py-3">
-                    <PhoneSearchHighlight phone={c.phone} searchQuery={debouncedQ} />
-                    {c.phone && (
-                      <div className="mt-1">
-                        <PhoneLink phone={c.phone} />
-                      </div>
-                    )}
+                    <HighlightedPhoneLink phone={c.phone} searchQuery={debouncedQ} />
                   </td>
                   <td className="px-3 py-3">
                     <HighlightedAddressLink address={c.address} searchQuery={debouncedQ} />

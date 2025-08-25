@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_25_090501) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_25_132245) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -25,6 +25,15 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_090501) do
     t.string "actor"
     t.datetime "created_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
     t.index ["target_type", "target_id", "created_at"], name: "index_audit_logs_on_target_type_and_target_id_and_created_at"
+  end
+
+  create_table "customer_memos", force: :cascade do |t|
+    t.bigint "customer_id", null: false
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["customer_id", "created_at"], name: "index_customer_memos_on_customer_id_and_created_at"
+    t.index ["customer_id"], name: "index_customer_memos_on_customer_id"
   end
 
   create_table "customers", force: :cascade do |t|
@@ -182,6 +191,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_090501) do
     t.check_constraint "status::text = ANY (ARRAY['todo'::character varying::text, 'doing'::character varying::text, 'done'::character varying::text])", name: "chk_tasks_status"
   end
 
+  add_foreign_key "customer_memos", "customers"
   add_foreign_key "deliveries", "projects", on_delete: :cascade
   add_foreign_key "estimate_items", "estimates"
   add_foreign_key "estimate_items", "materials"

@@ -22,6 +22,52 @@ export function PhoneLink({ phone }: { phone: string | null }) {
   );
 }
 
+// 検索ハイライト付きの電話番号リンクコンポーネント
+export function HighlightedPhoneLink({
+  phone,
+  searchQuery,
+}: {
+  phone: string | null;
+  searchQuery: string;
+}) {
+  if (!phone) return <span className="text-gray-400">-</span>;
+
+  const telLink = phone.replace(/[^\d]/g, '');
+
+  // 検索クエリでハイライト処理
+  const highlightText = (text: string, query: string) => {
+    if (!query.trim()) return text;
+
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+
+    return parts.map((part, index) =>
+      regex.test(part) ? (
+        <mark key={index} className="bg-yellow-200 px-1 rounded">
+          {part}
+        </mark>
+      ) : (
+        part
+      ),
+    );
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <a href={`tel:${telLink}`} className="text-blue-600 hover:underline flex items-center gap-1">
+        📞 {highlightText(phone, searchQuery)}
+      </a>
+      <button
+        onClick={() => navigator.clipboard.writeText(phone)}
+        className="text-gray-500 hover:text-gray-700 p-1"
+        title="コピー"
+      >
+        ⧉
+      </button>
+    </div>
+  );
+}
+
 // 住所を地図リンクにするコンポーネント
 export function AddressLink({ address }: { address: string | null }) {
   if (!address) return <span className="text-gray-400">-</span>;
