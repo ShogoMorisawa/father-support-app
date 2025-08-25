@@ -14,6 +14,25 @@ class Customer < ApplicationRecord
             q: pattern, qn: q.gsub(/\D/, ""))
     }
 
+    # 最近の活動日時を計算
+    def last_activity_at
+      [
+        projects.maximum(:updated_at),
+        projects.joins(:estimates).maximum('estimates.updated_at'),
+        projects.joins(:deliveries).maximum('deliveries.updated_at')
+      ].compact.max
+    end
+
+    # 進行中のタスク数
+    def active_tasks_count
+      projects.joins(:tasks).where(tasks: { status: 'in_progress' }).count
+    end
+
+    # 未納品数
+    def deliveries_pending_count
+      projects.joins(:deliveries).where(deliveries: { status: 'pending' }).count
+    end
+
     private
 
     def normalize_phone!

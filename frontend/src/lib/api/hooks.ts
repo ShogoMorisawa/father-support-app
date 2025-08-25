@@ -382,7 +382,7 @@ export function useCustomerSearch(q: string, limit = 20) {
 }
 
 export function useCustomers(
-  order: 'name.asc' | 'name.desc' | 'created.desc' = 'name.asc',
+  order: 'name.asc' | 'name.desc' | 'created.desc' | 'last_activity.desc' = 'name.asc',
   limit = 200,
 ) {
   return useQuery({

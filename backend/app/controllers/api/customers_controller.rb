@@ -17,6 +17,7 @@ module Api
       rel = case order
       when "name.desc"   then rel.order(name: :desc)
       when "created.desc" then rel.order(created_at: :desc)
+      when "last_activity.desc" then rel.order(last_activity_at: :desc).nulls_last
       else rel.order(name: :asc)
       end
       limit = [ (params[:limit] || 200).to_i, 500 ].min
@@ -66,7 +67,8 @@ module Api
         nameKana: c.name_kana,
         phone: c.phone,
         address: c.address,
-        createdAt: c.created_at&.iso8601
+        createdAt: c.created_at&.iso8601,
+        lastActivityAt: c.last_activity_at&.iso8601
       }
     end
 

@@ -36,7 +36,55 @@ function StatsSummary({ stats }: { stats: any }) {
 }
 
 // 最近の活動タイムライン
-function RecentActivity({ customerId }: { customerId: number }) {
+function RecentActivity({ customerId, stats }: { customerId: number; stats: any }) {
+  // 実際のデータがある場合はそれを使用、ない場合は仮のデータ
+  if (stats && (stats.estimatesCount > 0 || stats.projectsCount > 0)) {
+    return (
+      <div className="rounded border bg-white p-4">
+        <div className="font-medium mb-3 text-lg">最近の活動</div>
+        <div className="text-sm text-gray-600 mb-3">
+          見積: {stats.estimatesCount}件、案件: {stats.projectsCount}件
+        </div>
+        <div className="space-y-3">
+          {stats.activeProjectsCount > 0 && (
+            <div className="flex items-start gap-3 p-2 bg-blue-50 rounded">
+              <div className="text-sm text-blue-600 font-medium">
+                進行中
+              </div>
+              <div className="flex-1">
+                <div className="font-medium">進行中の作業</div>
+                <div className="text-sm text-gray-600">
+                  {stats.activeProjectsCount}件の作業が進行中
+                </div>
+              </div>
+            </div>
+          )}
+          {stats.deliveriesPendingCount > 0 && (
+            <div className="flex items-start gap-3 p-2 bg-orange-50 rounded">
+              <div className="text-sm text-orange-600 font-medium">
+                未納品
+              </div>
+              <div className="flex-1">
+                <div className="font-medium">納品待ち</div>
+                <div className="text-sm text-gray-600">
+                  {stats.deliveriesPendingCount}件の納品が待機中
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="mt-3 pt-3 border-t">
+          <Link
+            href={`/history?customer=${customerId}`}
+            className="text-blue-600 hover:underline text-sm"
+          >
+            すべての履歴を見る →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   // 仮のデータ（後でAPIから取得）
   const activities = [
     {
@@ -101,7 +149,7 @@ function RecentActivity({ customerId }: { customerId: number }) {
 }
 
 // 関連リスト（ミニ一覧）
-function RelatedLists({ customerId }: { customerId: number }) {
+function RelatedLists({ customerId, stats }: { customerId: number; stats: any }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* 未完了の作業 */}
@@ -110,16 +158,16 @@ function RelatedLists({ customerId }: { customerId: number }) {
         <div className="text-sm text-gray-600 mb-2">
           期日順、最新3件
         </div>
-        <div className="space-y-2">
-          <div className="text-sm">
-            <div className="font-medium">障子張り替え</div>
-            <div className="text-gray-500">期日: 2025/09/01</div>
+        {stats?.activeProjectsCount > 0 ? (
+          <div className="space-y-2">
+            <div className="text-sm">
+              <div className="font-medium">進行中の作業</div>
+              <div className="text-gray-500">{stats.activeProjectsCount}件</div>
+            </div>
           </div>
-          <div className="text-sm">
-            <div className="font-medium">網戸交換</div>
-            <div className="text-gray-500">期日: 2025/09/05</div>
-          </div>
-        </div>
+        ) : (
+          <div className="text-sm text-gray-500">進行中の作業はありません</div>
+        )}
         <div className="mt-3 pt-2 border-t">
           <Link
             href={`/tasks?customer=${customerId}`}
@@ -136,12 +184,16 @@ function RelatedLists({ customerId }: { customerId: number }) {
         <div className="text-sm text-gray-600 mb-2">
           期日順、最新3件
         </div>
-        <div className="space-y-2">
-          <div className="text-sm">
-            <div className="font-medium">障子 3枚</div>
-            <div className="text-gray-500">予定日: 2025/09/02</div>
+        {stats?.deliveriesPendingCount > 0 ? (
+          <div className="space-y-2">
+            <div className="text-sm">
+              <div className="font-medium">納品待ち</div>
+              <div className="text-gray-500">{stats.deliveriesPendingCount}件</div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="text-sm text-gray-500">未納品はありません</div>
+        )}
         <div className="mt-3 pt-2 border-t">
           <Link
             href={`/deliveries?customer=${customerId}`}
@@ -158,16 +210,16 @@ function RelatedLists({ customerId }: { customerId: number }) {
         <div className="text-sm text-gray-600 mb-2">
           直近3件
         </div>
-        <div className="space-y-2">
-          <div className="text-sm">
-            <div className="font-medium">障子張り替え</div>
-            <div className="text-gray-500">2025/08/25 作成</div>
+        {stats?.estimatesCount > 0 ? (
+          <div className="space-y-2">
+            <div className="text-sm">
+              <div className="font-medium">見積件数</div>
+              <div className="text-gray-500">{stats.estimatesCount}件</div>
+            </div>
           </div>
-          <div className="text-sm">
-            <div className="font-medium">網戸交換</div>
-            <div className="text-gray-500">2025/08/20 作成</div>
-          </div>
-        </div>
+        ) : (
+          <div className="text-sm text-gray-500">見積はありません</div>
+        )}
         <div className="mt-3 pt-2 border-t">
           <Link
             href={`/estimates?customer=${customerId}`}
@@ -320,10 +372,10 @@ export default function CustomerDetailPage() {
       <StatsSummary stats={stats} />
 
       {/* 最近の活動 */}
-      <RecentActivity customerId={id} />
+      <RecentActivity customerId={id} stats={stats} />
 
       {/* 関連リスト */}
-      <RelatedLists customerId={id} />
+      <RelatedLists customerId={id} stats={stats} />
 
       {/* クイックアクション */}
       <div className="rounded border bg-white p-4">

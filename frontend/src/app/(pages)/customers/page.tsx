@@ -1,6 +1,7 @@
 'use client';
 import { useCustomers, useCustomerSearch } from '@/lib/api/hooks';
 import { CustomerName, PhoneLink, AddressLink, StatusBadge, QuickActionButton } from '@/app/_components/CustomerInfo';
+import { SearchHighlight, PhoneSearchHighlight } from '@/app/_components/SearchHighlight';
 import Link from 'next/link';
 import { useMemo, useState, useCallback, useEffect } from 'react';
 
@@ -31,13 +32,50 @@ function CustomerSkeletonRow() {
   );
 }
 
+// ハイライト付き顧客名コンポーネント
+function HighlightedCustomerName({ customer, searchQuery }: { customer: any; searchQuery: string }) {
+  return (
+    <div>
+      <div className="font-medium text-base">
+        <SearchHighlight text={customer.name} searchQuery={searchQuery} />
+      </div>
+      <div className="text-sm text-gray-500">
+        <SearchHighlight text={customer.nameKana || 'カナ未設定'} searchQuery={searchQuery} />
+      </div>
+    </div>
+  );
+}
+
+// ハイライト付き住所コンポーネント
+function HighlightedAddressLink({ address, searchQuery }: { address: string | null; searchQuery: string }) {
+  if (!address) return <span className="text-gray-400">-</span>;
+  
+  const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(address)}`;
+  
+  return (
+    <div className="flex items-center gap-2">
+      <span>
+        📍 <SearchHighlight text={address} searchQuery={searchQuery} />
+      </span>
+      <a
+        href={mapUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 hover:underline text-sm"
+      >
+        地図で開く
+      </a>
+    </div>
+  );
+}
+
 export default function CustomersPage() {
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [order, setOrder] = useState<'name.asc' | 'last_activity.desc'>('name.asc');
   const [isLoading, setIsLoading] = useState(false);
   
-  const { data: listData, isLoading: listLoading } = useCustomers(order === 'name.asc' ? 'name.asc' : 'name.asc', 200);
+  const { data: listData, isLoading: listLoading } = useCustomers(order, 200);
   const { data: searchData, isLoading: searchLoading } = useCustomerSearch(debouncedQ, 50);
 
   // デバウンス処理
@@ -127,13 +165,18 @@ export default function CustomersPage() {
               items.map((c) => (
                 <tr key={c.id} className="border-t hover:bg-gray-50">
                   <td className="px-3 py-3">
-                    <CustomerName customer={c} />
+                    <HighlightedCustomerName customer={c} searchQuery={debouncedQ} />
                   </td>
                   <td className="px-3 py-3">
-                    <PhoneLink phone={c.phone} />
+                    <PhoneSearchHighlight phone={c.phone} searchQuery={debouncedQ} />
+                    {c.phone && (
+                      <div className="mt-1">
+                        <PhoneLink phone={c.phone} />
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-3">
-                    <AddressLink address={c.address} />
+                    <HighlightedAddressLink address={c.address} searchQuery={debouncedQ} />
                   </td>
                   <td className="px-3 py-3 text-center">
                     <StatusBadge customer={c} />
