@@ -204,12 +204,55 @@ if defined?(Tasks::CompleteService)
   end
 end
 
+# ---- フロントエンドテスト用の追加タスクデータ
+say "Create additional tasks for frontend testing"
+customers.first(5).each do |c|
+  # 各顧客に2件のプロジェクト（進行中）
+  rand(1..2).times do
+    due_on = jst_today + rand(1..7) # 1週間以内
+    p = Project.create!(
+      customer: c,
+      title: "#{c.name}様 #{['障子','襖','網戸','カーテン'].sample} #{rand(1..5)}枚",
+      status: "in_progress",
+      due_on: due_on
+    )
+    
+    # 各プロジェクトに2〜4件のタスク（todo/doneが半々）
+    rand(2..4).times do
+      status = rand < 0.5 ? "todo" : "done"
+      t = Task.create!(
+        project: p,
+        title: ["障子 張替", "襖 張替", "網戸 張替", "カーテン 取付"].sample + " #{rand(1..5)}枚",
+        kind: "work",
+        status: status,
+        due_on: due_on + rand(-2..2), # プロジェクト期日の前後2日
+        prepared_at: status == "done" ? Time.current : nil
+      )
+      
+      # 各タスクに1〜3件の材料
+      rand(1..3).times do
+        m = materials.sample
+        planned = [0.5, 1.0, 1.5, 2.0, 3.0].sample
+        used = status == "done" ? planned : 0  # 完了タスクは使用量、未完了タスクは0
+        TaskMaterial.create!(
+          task: t,
+          material: m,
+          material_name: m.name,
+          qty_planned: planned,
+          qty_used: used
+        )
+      end
+    end
+  end
+end
+
 say "Done."
 puts
 puts "Counts:"
 puts "  Customers : #{Customer.count}"
 puts "  Materials : #{Material.count}"
 puts "  Projects  : #{Project.count} (completed: #{Project.where(status: 'completed').count})"
-puts "  Tasks     : #{Task.count} (done: #{Task.where(status: 'done').count})"
+puts "  Tasks     : #{Task.count} (todo: #{Task.where(status: 'todo').count}, done: #{Task.where(status: 'done').count})"
 puts "  Deliveries: #{Delivery.count} (pending: #{Delivery.where(status: 'pending').count}, delivered: #{Delivery.where(status: 'delivered').count})"
 puts "  Estimates : #{Estimate.count}"
+puts "  TaskMaterials: #{TaskMaterial.count}"
