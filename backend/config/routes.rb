@@ -55,7 +55,7 @@ Rails.application.routes.draw do
       post :complete, to: "estimates/completions#create"
     end
 
-    resources :materials, only: [ :index ]
+    resources :materials, only: [ :index, :create ]
     get "materials/low", to: "materials#low"
     get "materials/availability", to: "materials_availability#index"
 

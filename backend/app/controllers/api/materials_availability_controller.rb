@@ -28,6 +28,7 @@ module Api
           id: m.id,
           name: m.name,
           unit: m.unit,
+          category: m.category,
           currentQty: current.to_f,
           committedQty: committed.to_f,
           availableQty: available.to_f,
