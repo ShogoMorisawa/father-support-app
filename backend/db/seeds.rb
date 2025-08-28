@@ -246,6 +246,63 @@ customers.first(5).each do |c|
   end
 end
 
+# ---- E2Eテスト用の固定シナリオ
+say "Create E2E test scenario"
+e2e_customer = Customer.create!(
+  name: "E2Eテスト顧客",
+  phone: "090-E2E-TEST",
+  address: "E2Eテスト住所"
+)
+
+# 障子紙（標準）の在庫を少なくして不足状態を作る
+e2e_material = Material.find_by(name: "障子紙（標準）")
+e2e_material.update!(current_qty: 5.0) # threshold_qty=15 より少ない
+
+# 見積：障子紙（標準）を20枚必要とする（在庫不足）
+e2e_estimate = Estimate.create!(
+  scheduled_at: jst_iso(jst_today), # 今日の日付に変更
+  customer: e2e_customer,
+  status: "scheduled",
+  accepted: nil
+)
+
+EstimateItem.create!(
+  estimate: e2e_estimate,
+  material: e2e_material,
+  material_name: e2e_material.name,
+  quantity: 20.0
+)
+
+# タスク：障子紙（標準）を5枚使用予定（完了で在庫がさらに減る）
+e2e_project = Project.create!(
+  customer: e2e_customer,
+  title: "E2Eテスト案件",
+  status: "in_progress",
+  due_on: jst_today + 3
+)
+
+e2e_task = Task.create!(
+  project: e2e_project,
+  title: "E2Eテストタスク",
+  kind: "work",
+  status: "todo",
+  due_on: jst_today + 3
+)
+
+TaskMaterial.create!(
+  task: e2e_task,
+  material: e2e_material,
+  material_name: e2e_material.name,
+  qty_planned: 5.0,
+  qty_used: 0.0
+)
+
+say "E2E test scenario created:"
+puts "  Customer: #{e2e_customer.name} (ID: #{e2e_customer.id})"
+puts "  Material: #{e2e_material.name} (ID: #{e2e_material.id}, current: #{e2e_material.current_qty}, threshold: #{e2e_material.threshold_qty})"
+puts "  Estimate: ID #{e2e_estimate.id}, needs #{e2e_material.name} 20#{e2e_material.unit}"
+puts "  Task: ID #{e2e_task.id}, will use #{e2e_material.name} 5#{e2e_material.unit}"
+
 say "Done."
 puts
 puts "Counts:"

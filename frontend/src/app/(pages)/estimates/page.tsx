@@ -1,8 +1,10 @@
 'use client';
 import EditEstimateScheduleModal from '@/app/_components/EditEstimateScheduleModal';
 import EstimateStatusBadge from '@/app/_components/EstimateStatusBadge';
+import StockBadge from '@/app/_components/StockBadge';
 import Toast from '@/app/_components/Toast';
 import { useCompleteEstimate, useEstimates, useUpdateEstimate } from '@/lib/api/hooks';
+import { formatQtyDiff } from '@/lib/format/quantity';
 import { isoToJstHm, isoToJstYmd, todayJstYmd, tomorrowJstYmd } from '@/lib/time';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -17,7 +19,7 @@ type GroupedEstimates = {
 };
 
 export default function EstimatesPage() {
-  const { data, refetch } = useEstimates(undefined, 20);
+  const { data, refetch } = useEstimates(undefined, 20, true); // withStock=true で在庫情報を取得
   const items: any[] = data?.data?.items ?? [];
   const complete = useCompleteEstimate();
   const updateEstimate = useUpdateEstimate();
@@ -133,8 +135,59 @@ export default function EstimatesPage() {
     const mapsHref = getMapsHref(e.customer?.address);
     const canAct = e.status === 'scheduled';
 
+    // 在庫状況の集計
+    const stockPreview = e.stockPreview;
+    const hasShortages = stockPreview?.overallStatus === 'shortage';
+    const shortages = stockPreview?.shortages || [];
+    const unregistered = stockPreview?.unregistered || [];
+
     return (
-      <div key={e.id} className="rounded border bg-white p-4 space-y-3">
+      <div key={e.id} className="rounded border bg-white p-4 space-y-3" data-testid="estimate-card">
+        {/* 在庫サマリーバナー */}
+        {stockPreview && (
+          <div
+            className={`rounded-md p-3 border ${
+              hasShortages
+                ? 'bg-red-50 border-red-200 text-red-800'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            }`}
+            data-testid="estimate-stock-banner"
+          >
+            {hasShortages ? (
+              <div className="space-y-1">
+                {shortages.length > 0 && (
+                  <div className="text-sm">
+                    <span className="font-medium">不足：</span>
+                    {shortages.slice(0, 2).map((item: any, index: number) => (
+                      <span key={item.name}>
+                        {index > 0 && ' / '}
+                        {item.name} {formatQtyDiff(-item.shortage)}
+                        {item.unit}
+                      </span>
+                    ))}
+                    {shortages.length > 2 && (
+                      <span className="text-red-600">（ほか{shortages.length - 2}件）</span>
+                    )}
+                  </div>
+                )}
+                {unregistered.length > 0 && (
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">未登録（在庫不明）：</span>
+                    {unregistered.map((item: any, index: number) => (
+                      <span key={item.name}>
+                        {index > 0 && '・'}
+                        {item.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm font-medium">✓ この見積は在庫で対応可能です</div>
+            )}
+          </div>
+        )}
+
         {/* 時刻とステータスバッジ */}
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">{showDate ? `${date} ${time}` : time}</div>
@@ -178,6 +231,32 @@ export default function EstimatesPage() {
             </div>
           )}
         </div>
+
+        {/* 見積項目と在庫バッジ */}
+        {e.estimateItems && e.estimateItems.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-gray-700">見積項目</div>
+            <div className="space-y-1">
+              {e.estimateItems.map((item: any, index: number) => {
+                const stockStatus = stockPreview?.perLine?.[index]?.status || 'unregistered';
+                return (
+                  <div key={item.id} className="flex items-center justify-between text-sm">
+                    <div className="flex-1">
+                      <span className="text-gray-800">{item.materialName}</span>
+                      <span className="text-gray-500 ml-2">
+                        {item.quantity}
+                        {item.material?.unit || '個'}
+                      </span>
+                    </div>
+                    <div data-testid="estimate-line-badge">
+                      <StockBadge status={stockStatus} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* アクションボタン群（右端） */}
         <div className="flex items-center justify-end gap-2 pt-2">

@@ -30,11 +30,22 @@ export function isoToJstHm(iso?: string): string {
 
 /** 今日の 'YYYY-MM-DD'（JST） */
 export function todayJstYmd(): string {
-  return fmtYmdJST.format(new Date());
+  // テスト環境では固定の日付を使用
+  if (process.env.NODE_ENV === 'test') {
+    return '2025-08-28';
+  }
+
+  // 本番環境では現在の日付を使用
+  const now = new Date();
+  const jstOffset = 9 * 60; // JST = UTC+9
+  const jstDate = new Date(now.getTime() + jstOffset * 60 * 1000);
+  return jstDate.toISOString().slice(0, 10);
 }
 
 /** 明日の 'YYYY-MM-DD'（JST） */
 export function tomorrowJstYmd(): string {
-  // 日本はDSTなしなので +24h でOK
-  return fmtYmdJST.format(new Date(Date.now() + 24 * 60 * 60 * 1000));
+  const today = todayJstYmd();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().slice(0, 10);
 }

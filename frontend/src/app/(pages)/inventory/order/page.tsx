@@ -1,6 +1,7 @@
 'use client';
 
-import { useLowMaterials } from '@/lib/api/hooks';
+import { useMaterialsAvailability } from '@/lib/api/hooks';
+import { formatQty } from '@/lib/format/quantity';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -9,6 +10,8 @@ type OrderRow = {
   name: string;
   unit?: string | null;
   currentQty: number;
+  committedQty: number;
+  availableQty: number;
   thresholdQty: number;
   orderQty: number; // 発注数量（編集可）
 };
@@ -22,24 +25,31 @@ function toYmd(date = new Date()) {
 }
 
 export default function InventoryOrderTemplatePage() {
-  const { data, isLoading } = useLowMaterials();
+  const { data, isLoading } = useMaterialsAvailability('available.asc', 200);
   const items: any[] = data?.data?.items ?? [];
+
+  // available < threshold の材料のみを抽出
+  const orderItems = useMemo(() => {
+    return items.filter((m) => m.availableQty < m.thresholdQty);
+  }, [items]);
+
   const initialRows = useMemo<OrderRow[]>(() => {
-    return items.map((m) => {
-      // 推奨発注量：とりあえず「閾値の2倍まで補う」= max(threshold*2 - current, threshold - current, 1)
-      const deficit = Math.max(m.thresholdQty - m.currentQty, 0);
-      const target = Math.max(m.thresholdQty * 2 - m.currentQty, deficit, 1);
+    return orderItems.map((m) => {
+      // 推奨発注量：max(threshold*2 - available, 0)
+      const recommendedQty = Math.max(m.thresholdQty * 2 - m.availableQty, 0);
       return {
         id: m.id,
         name: m.name,
         unit: m.unit ?? '',
         currentQty: Number(m.currentQty ?? 0),
+        committedQty: Number(m.committedQty ?? 0),
+        availableQty: Number(m.availableQty ?? 0),
         thresholdQty: Number(m.thresholdQty ?? 0),
-        orderQty: Math.ceil(target), // 最小1、整数に丸め（必要なら小数も可）
+        orderQty: Math.ceil(recommendedQty), // 最小1、整数に丸め
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(items)]);
+  }, [JSON.stringify(orderItems)]);
 
   const [rows, setRows] = useState<OrderRow[]>(initialRows);
   useEffect(() => setRows(initialRows), [initialRows]);
@@ -82,7 +92,7 @@ export default function InventoryOrderTemplatePage() {
   };
 
   return (
-    <main className="max-w-4xl mx-auto p-4 space-y-4">
+    <main className="max-w-6xl mx-auto p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">発注テンプレート</h1>
         <div className="text-sm">
@@ -98,6 +108,8 @@ export default function InventoryOrderTemplatePage() {
             <tr>
               <th className="px-3 py-2 text-left">名称</th>
               <th className="px-3 py-2 text-right">現在庫</th>
+              <th className="px-3 py-2 text-right">消費予定</th>
+              <th className="px-3 py-2 text-right">利用可能</th>
               <th className="px-3 py-2 text-right">閾値</th>
               <th className="px-3 py-2 text-right">発注数量</th>
               <th className="px-3 py-2">単位</th>
@@ -106,23 +118,25 @@ export default function InventoryOrderTemplatePage() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
+                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
                   読み込み中…
                 </td>
               </tr>
             )}
             {!isLoading && rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
-                  閾値を下回る在庫はありません。
+                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
+                  発注が必要な在庫はありません。
                 </td>
               </tr>
             )}
             {rows.map((r, i) => (
               <tr key={`row-${r.id}-${i}`} className="border-t">
                 <td className="px-3 py-2">{r.name}</td>
-                <td className="px-3 py-2 text-right">{r.currentQty}</td>
-                <td className="px-3 py-2 text-right">{r.thresholdQty}</td>
+                <td className="px-3 py-2 text-right">{formatQty(r.currentQty)}</td>
+                <td className="px-3 py-2 text-right">{formatQty(r.committedQty)}</td>
+                <td className="px-3 py-2 text-right font-medium">{formatQty(r.availableQty)}</td>
+                <td className="px-3 py-2 text-right">{formatQty(r.thresholdQty)}</td>
                 <td className="px-3 py-2 text-right">
                   <input
                     type="number"

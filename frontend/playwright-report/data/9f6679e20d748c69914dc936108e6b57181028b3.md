@@ -1,0 +1,128 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - navigation "メイン" [ref=e3]:
+      - list [ref=e4]:
+        - listitem [ref=e5]:
+          - link "ホーム" [ref=e6] [cursor=pointer]:
+            - /url: /
+        - listitem [ref=e7]:
+          - link "案件" [ref=e8] [cursor=pointer]:
+            - /url: /projects
+        - listitem [ref=e9]:
+          - link "見積" [ref=e10] [cursor=pointer]:
+            - /url: /estimates
+        - listitem [ref=e11]:
+          - link "作業" [ref=e12] [cursor=pointer]:
+            - /url: /tasks
+        - listitem [ref=e13]:
+          - link "納品" [ref=e14] [cursor=pointer]:
+            - /url: /deliveries
+        - listitem [ref=e15]:
+          - link "顧客" [ref=e16] [cursor=pointer]:
+            - /url: /customers
+        - listitem [ref=e17]:
+          - link "在庫" [ref=e18] [cursor=pointer]:
+            - /url: /inventory
+        - listitem [ref=e19]:
+          - link "履歴" [ref=e20] [cursor=pointer]:
+            - /url: /history
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - heading "見積一覧" [level=1] [ref=e23]
+      - link "新規作成" [ref=e24] [cursor=pointer]:
+        - /url: /estimates/new
+    - generic [ref=e25]:
+      - button "予定" [ref=e26]
+      - button "完了" [ref=e27]
+      - button "全て" [ref=e28]
+    - generic [ref=e29]:
+      - heading "今日 (2)" [level=2] [ref=e31]
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e36]:
+            - generic [ref=e37]: 不足：
+            - generic [ref=e38]: 障子紙（標準） -44.5枚
+          - generic [ref=e39]:
+            - generic [ref=e40]: 00:00
+            - generic [ref=e41]: 予約
+          - generic [ref=e43]: （無名）
+          - generic [ref=e44]:
+            - generic [ref=e45]: 見積項目
+            - generic [ref=e47]:
+              - generic [ref=e48]:
+                - generic [ref=e49]: 障子紙（標準）
+                - generic [ref=e50]: 20.0枚
+              - generic [ref=e52]: 不足
+          - generic [ref=e53]:
+            - button "日時変更" [ref=e54]
+            - button "成立" [ref=e55]
+            - button "不成立" [ref=e56]
+        - generic [ref=e57]:
+          - generic [ref=e59]: ✓ この見積は在庫で対応可能です
+          - generic [ref=e60]:
+            - generic [ref=e61]: 00:30
+            - generic [ref=e62]: 予約
+          - generic [ref=e63]:
+            - generic [ref=e64]: Thao Gutmann V
+            - generic [ref=e66] [cursor=pointer]: 080-7706-4151
+            - generic [ref=e67]:
+              - text: 別府市54325 Candida Estates
+              - generic [ref=e68] [cursor=pointer]: 📍地図で開く
+          - generic [ref=e69]:
+            - button "日時変更" [ref=e70]
+            - button "成立" [ref=e71]
+            - button "不成立" [ref=e72]
+      - heading "以降 (3)" [level=2] [ref=e74]
+      - generic [ref=e75]:
+        - generic [ref=e76]:
+          - generic [ref=e78]: ✓ この見積は在庫で対応可能です
+          - generic [ref=e79]:
+            - generic [ref=e80]: 2025-08-31 00:30
+            - generic [ref=e81]: 予約
+          - generic [ref=e82]:
+            - generic [ref=e83]: Jaqueline Swift
+            - generic [ref=e85] [cursor=pointer]: 080-5949-6142
+            - generic [ref=e86]:
+              - text: 由布市63427 Hammes Run
+              - generic [ref=e87] [cursor=pointer]: 📍地図で開く
+          - generic [ref=e88]:
+            - button "日時変更" [ref=e89]
+            - button "成立" [ref=e90]
+            - button "不成立" [ref=e91]
+        - generic [ref=e92]:
+          - generic [ref=e94]: ✓ この見積は在庫で対応可能です
+          - generic [ref=e95]:
+            - generic [ref=e96]: 2025-08-31 18:30
+            - generic [ref=e97]: 予約
+          - generic [ref=e98]:
+            - generic [ref=e99]: Brad Pacocha Sr.
+            - generic [ref=e101] [cursor=pointer]: 090-8183-6642
+            - generic [ref=e102]:
+              - text: 別府市67818 Thiel Fort
+              - generic [ref=e103] [cursor=pointer]: 📍地図で開く
+          - generic [ref=e104]:
+            - button "日時変更" [ref=e105]
+            - button "成立" [ref=e106]
+            - button "不成立" [ref=e107]
+        - generic [ref=e108]:
+          - generic [ref=e110]: ✓ この見積は在庫で対応可能です
+          - generic [ref=e111]:
+            - generic [ref=e112]: 2025-09-01 18:00
+            - generic [ref=e113]: 予約
+          - generic [ref=e114]:
+            - generic [ref=e115]: Avery O'Keefe
+            - generic [ref=e117] [cursor=pointer]: 070-3801-3538
+            - generic [ref=e118]:
+              - text: 臼杵市3828 Fay Summit
+              - generic [ref=e119] [cursor=pointer]: 📍地図で開く
+          - generic [ref=e120]:
+            - button "日時変更" [ref=e121]
+            - button "成立" [ref=e122]
+            - button "不成立" [ref=e123]
+  - button "Open Next.js Dev Tools" [ref=e129] [cursor=pointer]:
+    - img [ref=e130] [cursor=pointer]
+  - alert [ref=e133]
+```

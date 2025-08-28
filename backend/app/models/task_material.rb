@@ -3,7 +3,7 @@ class TaskMaterial < ApplicationRecord
     belongs_to :material, optional: true
 
     validates :material_name, presence: true, unless: -> { material_id.present? }
-    validates :qty_used, numericality: { greater_than_or_equal_to: 0 }
+    validates :qty_used, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
     validates :qty_planned, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
 
     # 在庫計算に用いる数量（qty_used>0 を優先、なければ qty_planned>0 を採用）
