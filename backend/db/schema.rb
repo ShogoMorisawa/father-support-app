@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_28_073632) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_28_163902) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -58,6 +58,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_28_073632) do
     t.datetime "updated_at", null: false
     t.datetime "completed_at"
     t.datetime "scheduled_at"
+    t.time "delivery_time"
     t.index ["completed_at"], name: "index_deliveries_on_completed_at"
     t.index ["project_id", "date", "scheduled_at", "title"], name: "ux_deliveries_project_date_scheduled_title", unique: true
     t.index ["project_id", "date"], name: "index_deliveries_on_project_id_and_date"
@@ -119,6 +120,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_28_073632) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "category"
     t.index ["id"], name: "idx_materials_low", where: "(current_qty < threshold_qty)"
     t.index ["name"], name: "index_materials_on_name", unique: true
     t.check_constraint "current_qty >= 0::numeric AND threshold_qty >= 0::numeric", name: "chk_materials_qty_nonneg"
@@ -176,6 +178,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_28_073632) do
     t.decimal "qty_used", precision: 12, scale: 3, default: "0.0"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "unit"
     t.index ["material_id"], name: "index_task_materials_on_material_id"
     t.index ["task_id", "material_id"], name: "index_task_materials_on_task_id_and_material_id"
     t.index ["task_id"], name: "index_task_materials_on_task_id"

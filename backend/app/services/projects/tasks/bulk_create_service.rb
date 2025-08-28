@@ -1,12 +1,13 @@
 class Projects::Tasks::BulkCreateService
-  def self.call(project_id:, items:, delivery_on:)
-    new(project_id:, items: items || [], delivery_on: delivery_on).call
+  def self.call(project_id:, items:, delivery_on:, delivery_time: nil)
+    new(project_id:, items: items || [], delivery_on: delivery_on, delivery_time: delivery_time).call
   end
 
-  def initialize(project_id:, items:, delivery_on:)
+  def initialize(project_id:, items:, delivery_on:, delivery_time: nil)
     @project_id = project_id.to_i
     @items = items
     @delivery_on = Date.parse(delivery_on.to_s)
+    @delivery_time = delivery_time
   end
 
   def call
@@ -21,6 +22,7 @@ class Projects::Tasks::BulkCreateService
       delivery = Delivery.lock.where(project_id: project.id, status: "pending").first_or_initialize
       delivery.date  = @delivery_on
       delivery.title = delivery.title.presence || "納品"
+      delivery.delivery_time = @delivery_time if @delivery_time.present?
       delivery.save!
 
       tasks = []
@@ -42,23 +44,37 @@ class Projects::Tasks::BulkCreateService
         Array(it["materials"]).each do |m|
           name = (m["materialName"] || m["name"]).to_s.strip
           qty_planned = m["qtyPlanned"]
+          material_id = m["materialId"]
+          
+          Rails.logger.debug "Processing material: #{m.inspect}"
           
           # 完全空行は捨てる
           next if name.blank? && (qty_planned.blank? || qty_planned == 0)
           
-          # 材料を検索（ID優先、なければ名前で検索）
-          material = if m["materialId"].present?
-                      ::Material.find_by(id: m["materialId"])
-                    else
-                      ::Material.find_by(name: name)
-                    end
+          # material_idが必須なので、nilの場合は作成しない
+          next if material_id.blank?
           
-          ::TaskMaterial.create!(
+          # 材料を検索
+          material = ::Material.find_by(id: material_id)
+          
+          # 材料が見つからない場合はエラー
+          raise StandardError, "材料ID #{material_id} が見つかりません" unless material
+          
+          Rails.logger.debug "Creating TaskMaterial with: task_id=#{t.id}, material_id=#{material_id}, qty_planned=#{qty_planned}, unit=#{material.unit}"
+          
+          task_material = ::TaskMaterial.new(
             task: t,
-            material: material,                    # 見つからなければ nil でOK
-            material_name: name.presence || (material&.name || "（未設定）"),
-            qty_planned: qty_planned.present? ? BigDecimal(qty_planned.to_s) : nil # nil可
+            material: material,
+            material_name: material.name,
+            qty_planned: qty_planned.present? ? BigDecimal(qty_planned.to_s) : nil,
+            qty_used: nil,  # 明示的にnilを設定
+            unit: material.unit
           )
+          
+          Rails.logger.debug "TaskMaterial valid? #{task_material.valid?}"
+          Rails.logger.debug "TaskMaterial errors: #{task_material.errors.full_messages}" unless task_material.valid?
+          
+          task_material.save!
         end
       end
 
@@ -88,6 +104,23 @@ class Projects::Tasks::BulkCreateService
       @tasks = tasks
       @deliveries = deliveries
       @error = error
+    end
+
+    def error_code
+      return nil if @error.nil?
+      
+      case @error
+      when /project must be active/
+        "project_inactive"
+      when /not found/i
+        "not_found"
+      else
+        "invalid"
+      end
+    end
+
+    def error_message
+      @error
     end
   end
 end
