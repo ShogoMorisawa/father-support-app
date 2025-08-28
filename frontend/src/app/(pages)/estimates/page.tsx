@@ -141,10 +141,26 @@ export default function EstimatesPage() {
     const shortages = stockPreview?.shortages || [];
     const unregistered = stockPreview?.unregistered || [];
 
+    const handleCardClick = () => {
+      router.push(`/estimates/${e.id}`);
+    };
+
     return (
-      <div key={e.id} className="rounded border bg-white p-4 space-y-3" data-testid="estimate-card">
+      <div
+        key={e.id}
+        className="rounded border bg-white p-4 space-y-3 cursor-pointer hover:shadow-lg hover:border-blue-300 transition-all duration-200 group"
+        data-testid="estimate-card"
+        onClick={handleCardClick}
+      >
         {/* 在庫サマリーバナー */}
-        {stockPreview && (
+        {e.hasItems === false ? (
+          // 明細がない場合は「未確定」ピルを表示
+          <div className="bg-gray-100 border border-gray-200 rounded-md p-3">
+            <div className="flex items-center justify-center">
+              <span className="text-gray-600 text-sm font-medium">未確定</span>
+            </div>
+          </div>
+        ) : stockPreview && stockPreview.mode !== 'not_applicable' ? (
           <div
             className={`rounded-md p-3 border ${
               hasShortages
@@ -186,12 +202,17 @@ export default function EstimatesPage() {
               <div className="text-sm font-medium">✓ この見積は在庫で対応可能です</div>
             )}
           </div>
-        )}
+        ) : null}
 
         {/* 時刻とステータスバッジ */}
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">{showDate ? `${date} ${time}` : time}</div>
-          <EstimateStatusBadge status={e.status} accepted={e.accepted} />
+          <div className="flex items-center gap-2">
+            <EstimateStatusBadge status={e.status} accepted={e.accepted} />
+            <span className="text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              詳細を見る →
+            </span>
+          </div>
         </div>
 
         {/* 顧客情報 */}
@@ -264,9 +285,10 @@ export default function EstimatesPage() {
           {canAct && (
             <button
               className="px-3 py-2 rounded border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
-              onClick={() =>
-                setEditModal({ isOpen: true, estimateId: e.id, scheduledAt: e.scheduledAt })
-              }
+              onClick={(event) => {
+                event.stopPropagation();
+                setEditModal({ isOpen: true, estimateId: e.id, scheduledAt: e.scheduledAt });
+              }}
               disabled={updateEstimate.isPending}
             >
               日時変更
@@ -278,7 +300,8 @@ export default function EstimatesPage() {
             <button
               className="px-3 py-2 rounded bg-black text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={complete.isPending}
-              onClick={async () => {
+              onClick={async (event) => {
+                event.stopPropagation();
                 try {
                   const res = await complete.mutateAsync({
                     id: e.id,
@@ -311,7 +334,8 @@ export default function EstimatesPage() {
             <button
               className="px-3 py-2 rounded border border-red-300 text-red-700 text-sm font-medium hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={complete.isPending}
-              onClick={async () => {
+              onClick={async (event) => {
+                event.stopPropagation();
                 if (!confirm('この見積を不成立にします。よろしいですか？')) return;
                 try {
                   await complete.mutateAsync({

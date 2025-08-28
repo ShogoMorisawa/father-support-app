@@ -138,7 +138,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    status?: "pending" | "done" | "cancelled";
+                    status?: "pending" | "all";
                     order?: "date.asc" | "date.desc";
                     /** @description 次ページ取得用カーソル */
                     cursor?: string;
@@ -663,6 +663,8 @@ export interface paths {
                     from?: string;
                     /** @description 終了日（JST, YYYY-MM-DD） */
                     to?: string;
+                    /** @description 在庫情報を含める場合は1 */
+                    withStock?: 0 | 1;
                     /** @description 次ページ取得用カーソル */
                     cursor?: string;
                     limit?: number;
@@ -787,6 +789,157 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/estimates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 見積詳細の取得 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @constant */
+                            ok: true;
+                            data: {
+                                estimate: {
+                                    id: number;
+                                    /** Format: date-time */
+                                    scheduledAt: string;
+                                    /** @enum {string} */
+                                    status: "scheduled" | "completed" | "cancelled";
+                                    accepted: boolean | null;
+                                    customer?: {
+                                        id?: number | null;
+                                        name?: string | null;
+                                        phone?: string | null;
+                                        address?: string | null;
+                                    };
+                                    customerSnapshot?: Record<string, never>;
+                                };
+                                items: components["schemas"]["EstimateItem"][];
+                            };
+                            correlationId?: string;
+                        };
+                    };
+                };
+                /** @description 見積が見つかりません */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/estimates/{id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 見積明細の置換更新 */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description 同一操作の再送を安全にするためのUUID。POST/PUT/PATCH/DELETEで必須。 */
+                    "X-Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["EstimateItemUpdate"][];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @constant */
+                            ok: true;
+                            data: {
+                                message: string;
+                                itemsCount: number;
+                            };
+                            correlationId?: string;
+                        };
+                    };
+                };
+                /** @description Idempotencyキーなし など */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiError"];
+                    };
+                };
+                /** @description 見積が見つかりません */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiError"];
+                    };
+                };
+                /** @description バリデーションエラー */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiError"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/materials": {
         parameters: {
             query?: never;
@@ -851,6 +1004,67 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["MaterialsListResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/materials/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 在庫可用性（current - committed）の一覧を取得 */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description 並び順 */
+                    order?: "available.asc" | "available.desc" | "name.asc" | "name.desc";
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @constant */
+                            ok: true;
+                            data: {
+                                items: {
+                                    id: number;
+                                    name: string;
+                                    unit?: string | null;
+                                    /** Format: double */
+                                    currentQty: number;
+                                    /** Format: double */
+                                    committedQty: number;
+                                    /** Format: double */
+                                    availableQty: number;
+                                    /** Format: double */
+                                    thresholdQty: number;
+                                    /** @enum {string} */
+                                    status: "ok" | "low" | "shortage";
+                                }[];
+                            };
+                            correlationId?: string;
+                        };
                     };
                 };
             };
@@ -1010,7 +1224,29 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            /** @constant */
+                            ok: true;
+                            data: {
+                                projectId: number;
+                                delivery: {
+                                    id: number;
+                                    /** Format: date */
+                                    date: string;
+                                    status: string;
+                                    title: string;
+                                };
+                                tasks: {
+                                    id: number;
+                                    title: string;
+                                    /** Format: date */
+                                    dueOn?: string | null;
+                                }[];
+                            };
+                            correlationId?: string | null;
+                        };
+                    };
                 };
                 /** @description Idempotencyキーなし 等 */
                 400: {
@@ -1502,14 +1738,57 @@ export interface components {
             /** @description 契約成立（accepted=true）の場合の見積合計（税抜/税込は運用で定義） */
             priceCents?: number | null;
             items?: components["schemas"]["EstimateItem"][];
+            /** @description 明細があるかどうか */
+            hasItems?: boolean;
+            stockPreview?: {
+                /** @enum {string} */
+                overallStatus?: "ok" | "shortage";
+                summary?: {
+                    insufficient_count?: number;
+                    unregistered_count?: number;
+                };
+                perLine?: {
+                    /** @enum {string} */
+                    status?: "ok" | "shortage" | "unregistered";
+                }[];
+                shortages?: {
+                    name?: string;
+                    required?: number;
+                    available?: number;
+                    shortage?: number;
+                    unit?: string;
+                }[];
+                unregistered?: {
+                    name?: string;
+                    required?: number;
+                    unit?: string;
+                }[];
+            } | {
+                /** @constant */
+                mode?: "not_applicable";
+            };
             /** @description 成立時に紐づく案件ID（生成された場合） */
             projectId?: number | null;
         };
         EstimateItem: {
+            id?: number | null;
             materialId?: number | null;
             materialName: string;
+            category?: string | null;
             /** @description 使用予定数量。最大3桁小数（内部はDECIMAL(12,3)） */
-            quantity: number;
+            qty: number;
+            unit?: string | null;
+            position?: number | null;
+        };
+        EstimateItemUpdate: {
+            id?: number | null;
+            materialId?: number | null;
+            materialName: string;
+            category?: string | null;
+            /** @description 使用予定数量。最大3桁小数（内部はDECIMAL(12,3)） */
+            qty: number;
+            unit?: string | null;
+            position?: number | null;
         };
         EstimatesListResponse: {
             /** @constant */

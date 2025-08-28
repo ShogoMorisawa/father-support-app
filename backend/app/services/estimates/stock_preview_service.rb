@@ -16,8 +16,19 @@ module Estimates
       unregistered = []
       per_line_statuses = []
 
+      # 同一材料の合計requiredを事前計算
+      material_totals = {}
       @estimate.estimate_items.includes(:material).each do |item|
-        required = item.quantity.to_d
+        next unless item.qty && item.qty > 0
+        
+        if item.material_id
+          material_totals[item.material_id] ||= 0
+          material_totals[item.material_id] += item.qty
+        end
+      end
+
+      @estimate.estimate_items.includes(:material).each do |item|
+        required = item.qty.to_d
         next unless required > 0
 
         material = item.material
@@ -26,23 +37,29 @@ module Estimates
           unregistered << {
             name: item.material_name,
             required: required.to_f,
-            unit: item.material&.unit || '個' # デフォルト単位
+            unit: item.unit || '個'
           }
           per_line_statuses << 'unregistered'
         else
-          # 在庫チェック
+          # 同一材料の合計requiredで在庫チェック
+          total_required = material_totals[material.id]
           availability = @availability_map[material.id]
-          if availability && availability[:available_qty] >= required
+          
+          if availability && availability[:available_qty] >= total_required
             per_line_statuses << 'ok'
           else
             per_line_statuses << 'shortage'
-            insufficient << {
-              name: material.name,
-              required: required.to_f,
-              available: availability&.dig(:available_qty)&.to_f || 0.0,
-              shortage: (required - (availability&.dig(:available_qty) || 0)).to_f,
-              unit: material.unit
-            }
+            # 不足情報は既に計算済みの場合は追加しない
+            unless insufficient.any? { |s| s[:name] == material.name }
+              shortage = (total_required - (availability&.dig(:available_qty) || 0)).to_f
+              insufficient << {
+                name: material.name,
+                required: total_required.to_f,
+                available: availability&.dig(:available_qty)&.to_f || 0.0,
+                shortage: shortage,
+                unit: material.unit
+              }
+            end
           end
         end
       end
@@ -79,8 +96,6 @@ module Estimates
         committed = committed_by_mat[material_id] || 0.to_d
         available = current - committed
         
-
-        
         [material_id, {
           current_qty: current,
           committed_qty: committed,
@@ -88,7 +103,6 @@ module Estimates
         }]
       end.to_h
       
-
       availability_map
     end
   end

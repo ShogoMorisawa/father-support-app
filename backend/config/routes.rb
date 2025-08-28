@@ -47,9 +47,10 @@ Rails.application.routes.draw do
 
     get "dashboard", to: "dashboard#show"
 
-    resources :estimates, only: [ :index, :create ] do
+    resources :estimates, only: [ :index, :show, :create ] do
       member do
         patch :update
+        patch :items
       end
       post :complete, to: "estimates/completions#create"
     end
