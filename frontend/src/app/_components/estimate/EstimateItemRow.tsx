@@ -146,20 +146,28 @@ export function EstimateItemRow({
 
         {/* 材料選択 */}
         <div className="md:col-span-4">
-          {showMaterialPicker ? (
-            <MaterialPicker
-              value={localItem.materialId || null}
-              onChange={handleMaterialChange}
-              availability={availability}
-              placeholder="材料を選択または入力"
-            />
-          ) : hasSelectedMaterial ? (
+          {!item.category ? (
+            // カテゴリーが未選択の場合
+            <div className="text-gray-500 text-sm italic">カテゴリーを選択してください</div>
+          ) : item.materialId ? (
+            // 材料が選択済みの場合
             <div className="space-y-2">
-              {/* 選択中材料の表示 */}
               <div className="p-3 bg-green-50 border border-green-200 rounded-md">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="text-green-800 font-medium">{item.materialName}</div>
+                    <div className="text-green-800 font-medium">
+                      <input
+                        type="text"
+                        value={localItem.materialName}
+                        onChange={(e) => {
+                          const updated = { ...localItem, materialName: e.target.value };
+                          setLocalItem(updated);
+                          onUpdate(updated);
+                        }}
+                        className="bg-transparent border-none p-0 text-green-800 font-medium focus:outline-none focus:ring-1 focus:ring-green-300 rounded px-1"
+                        placeholder="材料名を入力"
+                      />
+                    </div>
                     {selectedMaterial && (
                       <div className="text-green-600 text-sm mt-1">
                         在庫: {selectedMaterial.availableQty} / 予定消費:{' '}
@@ -181,10 +189,48 @@ export function EstimateItemRow({
                 </div>
               </div>
             </div>
-          ) : item.category ? (
-            <div className="text-gray-500 text-sm italic">材料を選択してください</div>
+          ) : item.materialName && !item.materialId ? (
+            // 自由入力済みの場合
+            <div className="space-y-2">
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="text-yellow-800 font-medium">
+                      <input
+                        type="text"
+                        value={localItem.materialName}
+                        onChange={(e) => {
+                          const updated = { ...localItem, materialName: e.target.value };
+                          setLocalItem(updated);
+                          onUpdate(updated);
+                        }}
+                        className="bg-transparent border-none p-0 text-yellow-800 font-medium focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1"
+                        placeholder="材料名を入力"
+                      />
+                    </div>
+                    <div className="text-yellow-600 text-sm mt-1">自由入力（在庫不明）</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleMaterialClear}
+                      className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-300 transition-colors"
+                    >
+                      クリア
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
-            <div className="text-gray-500 text-sm italic">カテゴリーを選択してください</div>
+            // カテゴリー選択済みで材料未選択の場合
+            <div className="space-y-2">
+              <MaterialPicker
+                value={localItem.materialId || null}
+                onChange={handleMaterialChange}
+                availability={availability}
+                placeholder="材料を選択または入力"
+              />
+            </div>
           )}
         </div>
 
