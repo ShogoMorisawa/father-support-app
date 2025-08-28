@@ -40,21 +40,26 @@ module Api
           
           # 在庫情報を追加
           if with_stock
-            stock_preview = ::Estimates::StockPreviewService.call(estimate: e)
-            item_data[:stockPreview] = {
-              overallStatus: stock_preview.overall_status,
-              summary: stock_preview.summary,
-              perLine: stock_preview.per_line,
-              shortages: stock_preview.shortages,
-              unregistered: stock_preview.unregistered
-            }
+            # itemsが0件の場合は在庫バナーを出さない
+            if e.estimate_items.any?
+              stock_preview = ::Estimates::StockPreviewService.call(estimate: e)
+              item_data[:stockPreview] = {
+                overallStatus: stock_preview.overall_status,
+                summary: stock_preview.summary,
+                perLine: stock_preview.per_line,
+                shortages: stock_preview.shortages,
+                unregistered: stock_preview.unregistered
+              }
+            else
+              item_data[:stockPreview] = { mode: 'not_applicable' }
+            end
             
             # 見積項目の詳細も含める
             item_data[:estimateItems] = e.estimate_items.map do |item|
               {
                 id: item.id,
                 materialName: item.material_name,
-                quantity: item.quantity,
+                qty: item.qty,
                 material: item.material ? {
                   id: item.material.id,
                   name: item.material.name,
@@ -62,6 +67,9 @@ module Api
                 } : nil
               }
             end
+            
+            # hasItemsフラグを追加
+            item_data[:hasItems] = e.estimate_items.any?
           end
           
           item_data
@@ -70,6 +78,38 @@ module Api
         render_ok(data: { items: items })
       rescue ArgumentError
         render_error(code: "invalid", message: "from の形式が不正です。", status: 422)
+      end
+
+      # GET /api/estimates/:id
+      def show
+        estimate = Estimate.includes(estimate_items: :material).find(params[:id])
+        
+        render_ok(data: {
+          estimate: {
+            id: estimate.id,
+            scheduledAt: estimate.scheduled_at.iso8601,
+            status: estimate.status,
+            accepted: estimate.accepted,
+            customer: estimate.customer ? {
+              id: estimate.customer.id,
+              name: estimate.customer.name,
+              phone: estimate.customer.phone,
+              address: estimate.customer.address
+            } : nil,
+            customerSnapshot: estimate.customer_snapshot
+          },
+          items: estimate.estimate_items.order(:position).map do |item|
+            {
+              id: item.id,
+              materialId: item.material_id,
+              materialName: item.material_name,
+              category: item.category,
+              qty: item.qty,
+              unit: item.unit,
+              position: item.position
+            }
+          end
+        })
       end
 
       # POST /api/estimates
@@ -81,6 +121,60 @@ module Api
         else
           render_error(code: "invalid", message: result.error_message, status: 422)
         end
+      end
+
+      # PATCH /api/estimates/:id/items
+      def items
+        Rails.logger.info "Items action called with params: #{params.inspect}"
+        
+        estimate = Estimate.find(params[:id])
+        
+        # 明細の置換更新
+        items_params = params.require(:items).map do |item|
+          Rails.logger.info "Processing item: #{item.inspect}"
+          item.permit(:id, :materialId, :materialName, :category, :qty, :unit, :position)
+        end
+        
+        Rails.logger.info "Processed items_params: #{items_params.inspect}"
+        
+        # 既存の明細を削除
+        estimate.estimate_items.destroy_all
+        
+        # 新しい明細を作成
+        items_params.each_with_index do |item_params, index|
+          estimate.estimate_items.create!(
+            material_id: item_params[:materialId],
+            material_name: item_params[:materialName],
+            category: item_params[:category],
+            qty: item_params[:qty],
+            unit: item_params[:unit],
+            position: item_params[:position] || index
+          )
+        end
+        
+        # 監査ログに記録
+        ::AuditLog.create!(
+          action: "estimate.items.updated",
+          target_type: "estimate",
+          target_id: estimate.id,
+          summary: "見積明細更新（#{estimate.estimate_items.count}件）"
+        )
+        
+        render_ok(data: { 
+          message: "明細を更新しました",
+          itemsCount: estimate.estimate_items.count
+        })
+      rescue ActiveRecord::RecordNotFound
+        render_error(code: "not_found", message: "見積が見つかりません", status: :not_found)
+      rescue ActiveRecord::RecordInvalid => e
+        render_error(code: "validation_error", message: e.record.errors.full_messages.join(", "), status: :unprocessable_entity)
+      rescue ActionController::ParameterMissing => e
+        Rails.logger.error "Parameter missing error: #{e.message}"
+        render_error(code: "parameter_missing", message: "パラメータが不足しています: #{e.message}", status: :bad_request)
+      rescue => e
+        Rails.logger.error "Unexpected error: #{e.message}"
+        Rails.logger.error e.backtrace.first(5)
+        render_error(code: "internal_error", message: "予期しないエラーが発生しました: #{e.message}", status: :internal_server_error)
       end
 
       def update
@@ -114,8 +208,6 @@ module Api
       end
 
       private
-
-
 
       def estimate_params
         params.require(:estimate).permit(:scheduled_at, :customer_id)

@@ -9,8 +9,8 @@ RSpec.describe Estimates::StockPreviewService do
   describe '.call' do
     context '在庫が十分な場合' do
       before do
-        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', quantity: 5.0)
-        create(:estimate_item, estimate: estimate, material: material2, material_name: '糊', quantity: 2.0)
+        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', qty: 5.0)
+        create(:estimate_item, estimate: estimate, material: material2, material_name: '糊', qty: 2.0)
       end
 
       it 'overall_status が ok になる' do
@@ -28,10 +28,41 @@ RSpec.describe Estimates::StockPreviewService do
       end
     end
 
+    context '同一材料の複数行で在庫が不足している場合' do
+      before do
+        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', qty: 5.0)
+        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', qty: 6.0)
+        create(:estimate_item, estimate: estimate, material: material2, material_name: '糊', qty: 1.0)
+      end
+
+      it '同一材料の合計で判定され、overall_status が shortage になる' do
+        result = described_class.call(estimate: estimate)
+
+        expect(result.overall_status).to eq('shortage')
+        expect(result.summary[:insufficient_count]).to eq(1)
+        expect(result.summary[:unregistered_count]).to eq(0)
+        expect(result.per_line).to contain_exactly(
+          { status: 'shortage' },
+          { status: 'shortage' },
+          { status: 'ok' }
+        )
+        expect(result.shortages).to contain_exactly(
+          hash_including(
+            name: '障子紙',
+            required: 11.0, # 5.0 + 6.0
+            available: 10.0,
+            shortage: 1.0,
+            unit: '枚'
+          )
+        )
+        expect(result.unregistered).to be_empty
+      end
+    end
+
     context '在庫が不足している場合' do
       before do
-        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', quantity: 15.0)
-        create(:estimate_item, estimate: estimate, material: material2, material_name: '糊', quantity: 1.0)
+        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', qty: 15.0)
+        create(:estimate_item, estimate: estimate, material: material2, material_name: '糊', qty: 1.0)
       end
 
       it 'overall_status が shortage になり、不足情報が返される' do
@@ -59,8 +90,8 @@ RSpec.describe Estimates::StockPreviewService do
 
     context '未登録材料がある場合' do
       before do
-        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', quantity: 5.0)
-        create(:estimate_item, estimate: estimate, material: nil, material_name: '未登録材料', quantity: 1.0)
+        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', qty: 5.0)
+        create(:estimate_item, estimate: estimate, material: nil, material_name: '未登録材料', qty: 1.0)
       end
 
       it '未登録材料は unregistered に入り、overall_status は ok のまま' do
@@ -86,7 +117,7 @@ RSpec.describe Estimates::StockPreviewService do
 
     context '数量が 0 の場合' do
       before do
-        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', quantity: 0)
+        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', qty: 0)
       end
 
       it '判定に影響しない' do
@@ -113,7 +144,7 @@ RSpec.describe Estimates::StockPreviewService do
       end
 
       before do
-        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', quantity: 4.0)
+        create(:estimate_item, estimate: estimate, material: material1, material_name: '障子紙', qty: 4.0)
       end
 
       it '提供された availability_map を使用する' do

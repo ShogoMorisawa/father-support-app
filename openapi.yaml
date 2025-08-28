@@ -394,6 +394,46 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/EstimateItem' }
+        hasItems:
+          type: boolean
+          description: 明細があるかどうか
+        stockPreview:
+          oneOf:
+            - type: object
+              properties:
+                overallStatus: { type: string, enum: [ok, shortage] }
+                summary:
+                  type: object
+                  properties:
+                    insufficient_count: { type: integer }
+                    unregistered_count: { type: integer }
+                perLine:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      status: { type: string, enum: [ok, shortage, unregistered] }
+                shortages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      required: { type: number }
+                      available: { type: number }
+                      shortage: { type: number }
+                      unit: { type: string }
+                unregistered:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      required: { type: number }
+                      unit: { type: string }
+            - type: object
+              properties:
+                mode: { type: string, const: 'not_applicable' }
         projectId:
           type: integer
           nullable: true
@@ -402,12 +442,30 @@ components:
     EstimateItem:
       type: object
       properties:
+        id: { type: integer, nullable: true }
         materialId: { type: integer, nullable: true }
         materialName: { type: string }
-        quantity:
+        category: { type: string, nullable: true }
+        qty:
           type: number
           description: 使用予定数量。最大3桁小数（内部はDECIMAL(12,3)）
-      required: [materialName, quantity]
+        unit: { type: string, nullable: true }
+        position: { type: integer, nullable: true }
+      required: [materialName, qty]
+
+    EstimateItemUpdate:
+      type: object
+      properties:
+        id: { type: integer, nullable: true }
+        materialId: { type: integer, nullable: true }
+        materialName: { type: string }
+        category: { type: string, nullable: true }
+        qty:
+          type: number
+          description: 使用予定数量。最大3桁小数（内部はDECIMAL(12,3)）
+        unit: { type: string, nullable: true }
+        position: { type: integer, nullable: true }
+      required: [materialName, qty]
     EstimatesListResponse:
       type: object
       properties:
@@ -902,6 +960,10 @@ paths:
           in: query
           schema: { type: string, format: date }
           description: 終了日（JST, YYYY-MM-DD）
+        - name: withStock
+          in: query
+          schema: { type: integer, enum: [0, 1], default: 0 }
+          description: 在庫情報を含める場合は1
         - name: cursor
           in: query
           schema: { type: string }
@@ -990,6 +1052,108 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
+  /estimates/{id}:
+    get:
+      tags: [Estimates]
+      summary: 見積詳細の取得
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      estimate:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          scheduledAt: { type: string, format: date-time }
+                          status: { type: string, enum: [scheduled, completed, cancelled] }
+                          accepted: { type: boolean, nullable: true }
+                          customer:
+                            type: object
+                            properties:
+                              id: { type: integer, nullable: true }
+                              name: { type: string, nullable: true }
+                              phone: { type: string, nullable: true }
+                              address: { type: string, nullable: true }
+                          customerSnapshot: { type: object }
+                        required: [id, scheduledAt, status, accepted]
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/EstimateItem' }
+                    required: [estimate, items]
+                  correlationId: { type: string }
+                required: [ok, data]
+        '404':
+          description: 見積が見つかりません
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /estimates/{id}/items:
+    patch:
+      tags: [Estimates]
+      summary: 見積明細の置換更新
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/EstimateItemUpdate' }
+              required: [items]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      message: { type: string }
+                      itemsCount: { type: integer }
+                    required: [message, itemsCount]
+                  correlationId: { type: string }
+                required: [ok, data]
+        '400':
+          description: Idempotencyキーなし など
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          description: 見積が見つかりません
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '422':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /materials:
     get:
       tags: [Materials]
@@ -1021,6 +1185,51 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/MaterialsListResponse' }
 
+  /materials/availability:
+    get:
+      tags: [Materials]
+      summary: '在庫可用性（current - committed）の一覧を取得'
+      parameters:
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum: [available.asc, available.desc, name.asc, name.desc]
+            default: available.asc
+          description: '並び順'
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                            unit: { type: string, nullable: true }
+                            currentQty: { type: number, format: double }
+                            committedQty: { type: number, format: double }
+                            availableQty: { type: number, format: double }
+                            thresholdQty: { type: number, format: double }
+                            status: { type: string, enum: [ok, low, shortage] }
+                          required:
+                            [id, name, currentQty, committedQty, availableQty, thresholdQty, status]
+                    required: [items]
+                  correlationId: { type: string }
+                required: [ok, data]
   /materials/{id}/receive:
     post:
       tags: [Materials]

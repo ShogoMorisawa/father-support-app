@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_26_152517) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_28_073632) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -72,12 +72,16 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_26_152517) do
     t.bigint "estimate_id", null: false
     t.bigint "material_id"
     t.string "material_name", null: false
-    t.decimal "quantity", precision: 12, scale: 3, null: false
+    t.decimal "qty", precision: 12, scale: 3, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "category"
+    t.string "unit"
+    t.integer "position", default: 0
+    t.index ["estimate_id", "position"], name: "index_estimate_items_on_estimate_id_and_position"
     t.index ["estimate_id"], name: "index_estimate_items_on_estimate_id"
     t.index ["material_id"], name: "index_estimate_items_on_material_id"
-    t.check_constraint "quantity >= 0::numeric", name: "chk_ei_qty_nonneg"
+    t.check_constraint "qty >= 0::numeric", name: "chk_ei_qty_nonneg"
   end
 
   create_table "estimates", force: :cascade do |t|

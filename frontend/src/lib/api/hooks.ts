@@ -512,6 +512,36 @@ export function useEstimates(fromISO?: string, limit = 10, withStock = false) {
   });
 }
 
+export function useEstimate(id: number) {
+  return useQuery({
+    queryKey: ['estimate', id],
+    queryFn: async () => api.get(`/estimates/${id}`).then((r) => r.data),
+    enabled: !!id,
+    staleTime: 30_000, // 30秒キャッシュ
+  });
+}
+
+export function useUpdateEstimateItems(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (
+      items: Array<{
+        id?: number;
+        materialId?: number | null;
+        materialName: string;
+        category?: string | null;
+        qty: number;
+        unit?: string | null;
+        position?: number;
+      }>,
+    ) => api.patch(`/estimates/${id}/items`, { items }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['estimate', id] });
+      qc.invalidateQueries({ queryKey: ['estimates'] });
+    },
+  });
+}
+
 export function useCreateEstimate() {
   const qc = useQueryClient();
   return useMutation({
