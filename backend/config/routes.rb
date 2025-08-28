@@ -56,6 +56,7 @@ Rails.application.routes.draw do
 
     resources :materials, only: [ :index ]
     get "materials/low", to: "materials#low"
+    get "materials/availability", to: "materials_availability#index"
 
     get "customers/search", to: "customers#search"
     resources :customers, only: [ :index, :show, :create, :update ] do

@@ -145,6 +145,9 @@ export function useCompleteTask(taskId: number) {
     mutationFn: () => api.post(`/tasks/${taskId}/complete`, {}).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries(); // 少し広めに無効化（在庫/履歴/ダッシュボード/納品詳細）
+      // 在庫可用性と見積の在庫情報を更新
+      qc.invalidateQueries({ queryKey: ['materialsAvailability'] });
+      qc.invalidateQueries({ queryKey: ['estimates'] });
     },
   });
 }
@@ -155,6 +158,9 @@ export function useRevertCompleteTask(taskId: number) {
     mutationFn: () => api.post(`/tasks/${taskId}/revert-complete`, {}).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries();
+      // 在庫可用性と見積の在庫情報を更新
+      qc.invalidateQueries({ queryKey: ['materialsAvailability'] });
+      qc.invalidateQueries({ queryKey: ['estimates'] });
     },
   });
 }
@@ -418,7 +424,26 @@ export function useReceiveMaterial() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['materials'] });
       qc.invalidateQueries({ queryKey: ['materials', 'low'] });
+      qc.invalidateQueries({ queryKey: ['materialsAvailability'] });
+      // 見積の在庫情報も更新
+      qc.invalidateQueries({ queryKey: ['estimates'] });
     },
+  });
+}
+
+// ---- Materials Availability
+export function useMaterialsAvailability(order = 'available.asc', limit = 200) {
+  const qs = new URLSearchParams();
+  qs.set('order', order);
+  qs.set('limit', String(limit));
+
+  return useQuery({
+    queryKey: ['materialsAvailability', order, limit],
+    queryFn: async () => {
+      const res = await api.get(`/materials/availability?${qs.toString()}`);
+      return res.data; // { ok: true, data: { items: [...] } }
+    },
+    staleTime: 60_000, // 1分キャッシュ（後で調整可）
   });
 }
 
@@ -473,14 +498,17 @@ export function useUpdateCustomer(id: number) {
 }
 
 // ---- Estimates
-export function useEstimates(fromISO?: string, limit = 10) {
+export function useEstimates(fromISO?: string, limit = 10, withStock = false) {
   const qs = new URLSearchParams();
   if (fromISO) qs.set('from', fromISO);
   qs.set('limit', String(limit));
+  if (withStock) qs.set('withStock', '1');
   return useQuery({
-    queryKey: ['estimates', fromISO ?? '', limit],
+    queryKey: ['estimates', fromISO ?? '', limit, withStock],
     queryFn: async () => api.get(`/estimates?${qs.toString()}`).then((r) => r.data),
-    refetchInterval: 60_000,
+    // withStock=1 の場合は短い staleTime
+    staleTime: withStock ? 30_000 : 60_000,
+    refetchInterval: withStock ? 30_000 : 60_000,
   });
 }
 

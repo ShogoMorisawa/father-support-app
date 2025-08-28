@@ -3,8 +3,8 @@ import axios, { InternalAxiosRequestConfig } from 'axios';
 const BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
 function stripApiPrefix(url: string) {
-  // バックエンドのAPIを使用するため、/apiプレフィックスを削除
-  return url.replace(/^\/api(\/|$)/, '/');
+  // バックエンドのAPIを使用するため、/apiプレフィックスは保持
+  return url;
 }
 
 function genIdemKey() {

@@ -1,56 +1,50 @@
 module Inventory
   class CheckTaskMaterials
-    def self.call(task_ids:)
-      new(task_ids).call
+    Result = Struct.new(:stock_sufficient, :insufficient_materials, :unregistered_materials, keyword_init: true)
+
+    def self.call(task:)
+      new(task).call
     end
 
-    def initialize(task_ids)
-      @task_ids = Array(task_ids)
+    def initialize(task)
+      @task = task
     end
 
     def call
-      return [] if @task_ids.empty?
+      insufficient = []
+      unregistered = []
 
-      tasks = Task.includes(task_materials: :material).where(id: @task_ids)
-      
-      tasks.map do |task|
-        insufficient_materials = []
-        stock_sufficient = true
-        
-        task.task_materials.each do |tm|
-          qty_planned = tm.qty_planned
-          next unless qty_planned && qty_planned > 0
-          
-          material = tm.material_id ? tm.material : (tm.material_name.present? ? Material.find_by(name: tm.material_name) : nil)
-          if material
-            available_qty = material.current_qty || 0
-            if available_qty < qty_planned
-              insufficient_materials << {
-                name: material.name,
-                required: qty_planned,
-                available: available_qty,
-                shortage: qty_planned - available_qty
-              }
-              stock_sufficient = false
-            end
-          else
-            # 材料が見つからない場合は不足扱い
-            insufficient_materials << {
-              name: tm.material_name,
-              required: qty_planned,
-              available: 0,
-              shortage: qty_planned
-            }
-            stock_sufficient = false
-          end
+      @task.task_materials.includes(:material).each do |tm|
+        qty = tm.effective_qty_for_inventory
+        next unless qty && qty > 0
+
+        material = tm.material
+        if material.nil?
+          # 未登録（在庫不明）
+          unregistered << {
+            name: tm.material_name,
+            required: qty.to_f,
+            status: 'unregistered'
+          }
+          next
         end
 
-        {
-          task_id: task.id,
-          stock_sufficient: stock_sufficient,
-          insufficient_materials: insufficient_materials
-        }
+        # 実在庫チェック
+        if material.current_qty < qty
+          insufficient << {
+            name: material.name,
+            required: qty.to_f,
+            available: material.current_qty.to_f,
+            shortage: (qty - material.current_qty).to_f
+          }
+        end
       end
+
+      Result.new(
+        stock_sufficient: insufficient.empty?,
+        insufficient_materials: insufficient,
+        unregistered_materials: unregistered
+      )
     end
   end
 end

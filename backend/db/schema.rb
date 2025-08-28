@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_25_153205) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_26_152517) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -169,7 +169,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_153205) do
     t.bigint "material_id"
     t.string "material_name", null: false
     t.decimal "qty_planned", precision: 12, scale: 3
-    t.decimal "qty_used", precision: 12, scale: 3, default: "0.0", null: false
+    t.decimal "qty_used", precision: 12, scale: 3, default: "0.0"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["material_id"], name: "index_task_materials_on_material_id"
