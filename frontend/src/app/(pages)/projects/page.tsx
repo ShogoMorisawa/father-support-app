@@ -115,7 +115,12 @@ export default function ProjectsPage() {
                       hour12: false,
                     })}
                   </div>
-                  <div className="font-medium">{estimate.customerName || '（無名）'}</div>
+                  <div className="font-medium">
+                    {estimate.customerName ||
+                      estimate.customer?.name ||
+                      estimate.customer_snapshot?.name ||
+                      '（無名）'}
+                  </div>
                 </li>
               ))}
               {groupedEstimates.today.length > 3 && (
@@ -141,7 +146,12 @@ export default function ProjectsPage() {
                       hour12: false,
                     })}
                   </div>
-                  <div className="font-medium">{estimate.customerName || '（無名）'}</div>
+                  <div className="font-medium">
+                    {estimate.customerName ||
+                      estimate.customer?.name ||
+                      estimate.customer_snapshot?.name ||
+                      '（無名）'}
+                  </div>
                 </li>
               ))}
               {groupedEstimates.tomorrow.length > 3 && (
@@ -168,7 +178,12 @@ export default function ProjectsPage() {
                       day: 'numeric',
                     })}
                   </div>
-                  <div className="font-medium">{estimate.customerName || '（無名）'}</div>
+                  <div className="font-medium">
+                    {estimate.customerName ||
+                      estimate.customer?.name ||
+                      estimate.customer_snapshot?.name ||
+                      '（無名）'}
+                  </div>
                 </li>
               ))}
               {groupedEstimates.later.length > 3 && (

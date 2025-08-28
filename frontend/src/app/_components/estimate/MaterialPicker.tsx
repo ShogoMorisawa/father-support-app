@@ -37,17 +37,26 @@ export function MaterialPicker({
       material.name.includes(searchTerm),
   );
 
+  const handleCustomInput = (input: string) => {
+    setCustomInput(input);
+    // 入力内容を常に更新（空文字列でも）
+    onChange(null, input);
+  };
+
+  const handleSearchChange = (input: string) => {
+    setSearchTerm(input);
+    // 検索フィールドでも自由入力を可能にする
+    if (input && !availability.find((m) => m.name.toLowerCase() === input.toLowerCase())) {
+      setCustomInput(input);
+      onChange(null, input);
+    }
+  };
+
   const handleMaterialSelect = (material: MaterialsAvailabilityItem) => {
     onChange(material.id, material.name, material.unit || undefined, undefined);
     setCustomInput('');
+    setSearchTerm(material.name); // 選択された材料名を検索フィールドに表示
     setIsOpen(false);
-  };
-
-  const handleCustomInput = (input: string) => {
-    setCustomInput(input);
-    if (input.trim()) {
-      onChange(null, input.trim());
-    }
   };
 
   const handleClear = () => {
@@ -59,14 +68,15 @@ export function MaterialPicker({
   return (
     <div className="relative">
       <div className="flex gap-2">
-        {/* 材料選択ドロップダウン */}
+        {/* 統合された材料選択・自由入力フィールド */}
         <div className="relative flex-1">
           <input
             type="text"
             placeholder={placeholder}
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             onFocus={() => setIsOpen(true)}
+            onBlur={() => setTimeout(() => setIsOpen(false), 200)} // 少し遅延させて選択可能にする
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
 
@@ -88,24 +98,17 @@ export function MaterialPicker({
                     )}
                   </div>
                 ))
+              ) : searchTerm ? (
+                <div className="px-3 py-2 text-gray-500">「{searchTerm}」で自由入力として使用</div>
               ) : (
-                <div className="px-3 py-2 text-gray-500">材料が見つかりません</div>
+                <div className="px-3 py-2 text-gray-500">材料を選択または入力してください</div>
               )}
             </div>
           )}
         </div>
 
-        {/* カスタム入力 */}
-        <input
-          type="text"
-          placeholder="自由入力"
-          value={customInput}
-          onChange={(e) => handleCustomInput(e.target.value)}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-
         {/* クリアボタン */}
-        {(selectedMaterial || customInput) && (
+        {(selectedMaterial || searchTerm) && (
           <button
             onClick={handleClear}
             className="px-3 py-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
@@ -128,11 +131,11 @@ export function MaterialPicker({
         </div>
       )}
 
-      {/* カスタム入力の情報表示 */}
-      {customInput && !selectedMaterial && (
+      {/* 自由入力の情報表示 */}
+      {searchTerm && !selectedMaterial && (
         <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
           <div className="text-yellow-800">
-            <span className="font-medium">カスタム入力:</span> {customInput}
+            <span className="font-medium">自由入力:</span> {searchTerm}
           </div>
           <div className="text-yellow-600 mt-1">在庫不明（材料マスターに登録されていません）</div>
         </div>

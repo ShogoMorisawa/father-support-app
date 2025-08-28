@@ -2,8 +2,16 @@ module Inventory
   class CheckTaskMaterials
     Result = Struct.new(:stock_sufficient, :insufficient_materials, :unregistered_materials, keyword_init: true)
 
-    def self.call(task:)
-      new(task).call
+    def self.call(task: nil, task_ids: nil)
+      if task_ids.present?
+        # 複数タスクの一括チェック
+        task_ids.map { |id| call(task: Task.find(id)) }
+      elsif task.present?
+        # 単一タスクのチェック
+        new(task).call
+      else
+        raise ArgumentError, "task または task_ids のいずれかが必要です"
+      end
     end
 
     def initialize(task)
