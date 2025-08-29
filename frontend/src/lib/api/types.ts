@@ -1598,15 +1598,28 @@ export interface components {
             notes?: string;
         };
         DeliveryTask: {
-            taskId: number;
+            id: number;
             projectId: number;
             customerName?: string;
-            /** Format: date-time */
+            /** Format: date */
             date: string;
+            /**
+             * Format: time
+             * @description 納品予定時刻（HH:MM形式）
+             */
+            deliveryTime?: string | null;
+            /** Format: date-time */
+            scheduledAt?: string | null;
             /** @enum {string} */
-            status: "pending" | "done" | "cancelled";
-            /** @description 案件タイトル/概要 */
+            status: "pending" | "delivered" | "cancelled";
+            /** @description 納品タイトル */
             title?: string;
+            /** @description タスク数 */
+            tasksCount?: number;
+            /** @description 準備完了タスク数 */
+            preparedCount?: number;
+            /** @description 全タスク準備完了フラグ */
+            allPrepared?: boolean;
         };
         CompleteResult: {
             /** @default true */

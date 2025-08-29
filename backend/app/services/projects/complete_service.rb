@@ -23,8 +23,8 @@ module Projects
 
         tasks = project.tasks.to_a
         not_done      = tasks.select { |t| t.status != "done" }
-        # 完了済みタスクは準備完了とみなす
-        not_prepared  = tasks.select { |t| t.status != "done" && t.prepared_at.nil? }
+        # 完了済みタスクまたは準備完了済みタスクは完了可能
+        not_prepared  = tasks.select { |t| t.status != "done" && t.prepared_at.nil? && t.task_materials.any? { |tm| tm.qty_used.present? && tm.qty_used > 0 } }
 
         if not_done.any? || not_prepared.any?
           msgs = []
@@ -37,7 +37,7 @@ module Projects
         low_stock_materials = []
         project.tasks.includes(:task_materials).each do |task|
           task.task_materials.each do |tm|
-            if tm.material_id.present? && tm.qty_used > 0
+            if tm.material_id.present? && tm.qty_used.present? && tm.qty_used > 0
               material = ::Material.lock.find(tm.material_id)
               material.current_qty -= tm.qty_used
               material.save!
@@ -67,7 +67,7 @@ module Projects
         deltas = []
         project.tasks.includes(:task_materials).each do |task|
           task.task_materials.each do |tm|
-            if tm.material_id.present? && tm.qty_used > 0
+            if tm.material_id.present? && tm.qty_used.present? && tm.qty_used > 0
               name = ::Material.find(tm.material_id).name rescue (tm.material&.name || tm.material_name)
               deltas << "#{name} -#{tm.qty_used.to_s('F')}"
             end

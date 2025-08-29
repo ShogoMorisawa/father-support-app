@@ -9,7 +9,7 @@ class TaskMaterial < ApplicationRecord
 
     # マスター選択時に材料情報を同期（クライアント入力は無視）
     before_validation :sync_material_info, if: :material_id_changed?
-    before_validation :sync_material_info, if: -> { material_id.present? }
+    before_validation :sync_material_info, if: -> { material_id.present? && material.present? }
 
     # 既存レコードでmaterial_idが無いものは更新不可
     validate :prevent_update_without_material_id, on: :update
@@ -30,10 +30,7 @@ class TaskMaterial < ApplicationRecord
 
       self.material_name = material.name
       self.unit = material.unit
-      # categoryフィールドが存在する場合のみ同期、存在しない場合はnilのまま
-      if material.respond_to?(:category) && material.category.present?
-        self.category = material.category
-      end
+      # categoryフィールドはtask_materialsテーブルに存在しないため削除
     end
 
     def prevent_update_without_material_id

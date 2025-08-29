@@ -2,7 +2,12 @@
 
 import { EstimateItemRow } from '@/app/_components/estimate/EstimateItemRow';
 import { StockSummaryBanner } from '@/app/_components/estimate/StockSummaryBanner';
-import { useEstimate, useMaterialsAvailability, useUpdateEstimateItems } from '@/lib/api/hooks';
+import {
+  useCompleteEstimate,
+  useEstimate,
+  useMaterialsAvailability,
+  useUpdateEstimateItems,
+} from '@/lib/api/hooks';
 import { paths } from '@/lib/api/types';
 import { computeEstimateStock } from '@/lib/stock-calculator';
 import { useParams, useRouter } from 'next/navigation';
@@ -20,11 +25,14 @@ export default function EstimateDetailPage() {
   const { data: estimateData, isLoading: estimateLoading } = useEstimate(estimateId);
   const { data: availabilityData, refetch: refetchAvailability } = useMaterialsAvailability();
   const updateEstimateItems = useUpdateEstimateItems(estimateId);
+  const completeEstimate = useCompleteEstimate();
 
   // ローカル状態
   const [items, setItems] = useState<EstimateItem[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [stockResult, setStockResult] = useState<any>(null);
+  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [deliveryTime, setDeliveryTime] = useState('10:00');
 
   // ユーティリティ関数
   const getPhoneHref = (phone?: string) => {
@@ -90,7 +98,7 @@ export default function EstimateDetailPage() {
     const newItem: EstimateItem = {
       materialId: null,
       materialName: '',
-      category: null,
+      category: null, // カテゴリを選択させる
       qty: 0,
       unit: null,
       position: items.length,
@@ -102,8 +110,44 @@ export default function EstimateDetailPage() {
   // 保存
   const handleSave = useCallback(async () => {
     try {
+      // 材料選択と数量のバリデーション
+      const validationErrors: { index: number; field: string; message: string }[] = [];
+
+      items.forEach((item, index) => {
+        if (!item.category) {
+          validationErrors.push({
+            index,
+            field: 'category',
+            message: 'カテゴリを選択してください',
+          });
+        }
+        if (!item.materialId) {
+          validationErrors.push({
+            index,
+            field: 'materialId',
+            message: '材料を選択してください',
+          });
+        }
+        if (!item.qty || item.qty <= 0) {
+          validationErrors.push({
+            index,
+            field: 'qty',
+            message: '数量を入力してください',
+          });
+        }
+      });
+
+      if (validationErrors.length > 0) {
+        // エラーメッセージを表示
+        const errorMessage = validationErrors
+          .map((error) => `${error.index + 1}行目: ${error.message}`)
+          .join('\n');
+        alert(`保存できません:\n${errorMessage}`);
+        return;
+      }
+
       // 空の明細を除外
-      const validItems = items.filter((item) => item.materialName.trim() && item.qty > 0);
+      const validItems = items.filter((item) => item.category && item.materialId && item.qty > 0);
 
       // 型を統一するためにidフィールドを調整
       const itemsForApi = validItems.map((item) => ({
@@ -129,6 +173,7 @@ export default function EstimateDetailPage() {
 
     const { shortages, unregistered } = stockResult;
 
+    // 在庫不足がある場合の確認
     if (shortages.length > 0) {
       const confirmed = confirm('不足があります。発注テンプレを作成しますか？');
       if (confirmed) {
@@ -137,6 +182,7 @@ export default function EstimateDetailPage() {
       }
     }
 
+    // 未登録材料がある場合の確認
     if (unregistered.length > 0) {
       const confirmed = confirm('未登録の材料があります。材料マスターへ登録しますか？');
       if (confirmed) {
@@ -145,9 +191,91 @@ export default function EstimateDetailPage() {
       }
     }
 
-    // 既存の成立フローへ遷移（実装は省略）
-    alert('成立処理を開始します');
-  }, [stockResult]);
+    // 明細データの存在確認
+    if (items.length === 0) {
+      alert('明細を入力してください。');
+      return;
+    }
+
+    // 明細データのバリデーション
+    const validationErrors: { index: number; field: string; message: string }[] = [];
+    items.forEach((item, index) => {
+      if (!item.category) {
+        validationErrors.push({
+          index,
+          field: 'category',
+          message: 'カテゴリを選択してください',
+        });
+      }
+      if (!item.materialId) {
+        validationErrors.push({
+          index,
+          field: 'materialId',
+          message: '材料を選択してください',
+        });
+      }
+      if (!item.qty || item.qty <= 0) {
+        validationErrors.push({
+          index,
+          field: 'qty',
+          message: '数量を入力してください',
+        });
+      }
+    });
+
+    if (validationErrors.length > 0) {
+      const errorMessage = validationErrors
+        .map((error) => `${error.index + 1}行目: ${error.message}`)
+        .join('\n');
+      alert(`見積もりを成立できません:\n${errorMessage}`);
+      return;
+    }
+
+    // 成立処理の確認
+    if (!confirm('この見積を成立にしますか？')) return;
+
+    try {
+      const res = await completeEstimate.mutateAsync({
+        id: estimateId,
+        accepted: true,
+        priceCents: 0,
+        projectTitle: `${estimateData.data.estimate.customer?.name ?? '案件'}`,
+        dueOn: deliveryDate,
+        deliveryAt: `${deliveryDate}T${deliveryTime}:00+09:00`,
+        items: items.map((item) => ({
+          materialId: item.materialId || null,
+          materialName: item.materialName,
+          category: item.category || null,
+          qty: item.qty,
+          unit: item.unit || null,
+        })),
+      });
+
+      if (res?.data?.projectId) {
+        // プロジェクトが作成された場合は、直接プロジェクト詳細画面に遷移
+        router.push(`/projects/${res.data.projectId}`);
+      } else {
+        // プロジェクトが作成されなかった場合は、成功メッセージを表示
+        alert('見積を成立しました。');
+        // 見積詳細を再取得
+        window.location.reload();
+      }
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.error?.message ||
+        '操作が競合しました。少し時間をおいて再試行してください';
+      alert(errorMessage);
+    }
+  }, [
+    stockResult,
+    completeEstimate,
+    estimateId,
+    estimateData,
+    router,
+    items,
+    deliveryDate,
+    deliveryTime,
+  ]);
 
   // 在庫再取得
   const handleRefreshStock = useCallback(() => {
@@ -345,20 +473,45 @@ export default function EstimateDetailPage() {
             </span>
           </div>
 
-          <div className="flex space-x-3">
-            <button
-              onClick={handleSave}
-              disabled={!hasUnsavedChanges || updateEstimateItems.isPending}
-              className="px-6 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-md transition-colors"
-            >
-              {updateEstimateItems.isPending ? '保存中...' : '下書き保存'}
-            </button>
-            <button
-              onClick={handleComplete}
-              className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
-            >
-              確定して成立へ
-            </button>
+          <div className="flex items-center space-x-4">
+            {/* 納品日時・時刻の設定 */}
+            <div className="flex items-center space-x-3 text-sm">
+              <div className="flex items-center space-x-2">
+                <label className="text-gray-600">納品日:</label>
+                <input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  className="px-2 py-1 border border-gray-300 rounded text-xs"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <label className="text-gray-600">時刻:</label>
+                <input
+                  type="time"
+                  value={deliveryTime}
+                  onChange={(e) => setDeliveryTime(e.target.value)}
+                  className="px-2 py-1 border border-gray-300 rounded text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={handleSave}
+                disabled={!hasUnsavedChanges || updateEstimateItems.isPending}
+                className="px-6 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-md transition-colors"
+              >
+                {updateEstimateItems.isPending ? '保存中...' : '下書き保存'}
+              </button>
+              <button
+                onClick={handleComplete}
+                disabled={completeEstimate.isPending}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-md transition-colors"
+              >
+                {completeEstimate.isPending ? '処理中...' : '確定して成立へ'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
