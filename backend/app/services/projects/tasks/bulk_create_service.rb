@@ -64,7 +64,7 @@ class Projects::Tasks::BulkCreateService
           
           task_material = ::TaskMaterial.new(
             task: t,
-            material: material,
+            material_id: material_id,  # material_idを直接設定
             material_name: material.name,
             qty_planned: qty_planned.present? ? BigDecimal(qty_planned.to_s) : nil,
             qty_used: nil,  # 明示的にnilを設定
@@ -73,6 +73,17 @@ class Projects::Tasks::BulkCreateService
           
           Rails.logger.debug "TaskMaterial valid? #{task_material.valid?}"
           Rails.logger.debug "TaskMaterial errors: #{task_material.errors.full_messages}" unless task_material.valid?
+          
+          # バリデーションエラーがある場合は詳細をログに出力
+          unless task_material.valid?
+            Rails.logger.error "TaskMaterial validation failed:"
+            Rails.logger.error "  material_id: #{task_material.material_id}"
+            Rails.logger.error "  material_name: #{task_material.material_name}"
+            Rails.logger.error "  qty_planned: #{task_material.qty_planned}"
+            Rails.logger.error "  unit: #{task_material.unit}"
+            Rails.logger.error "  Errors: #{task_material.errors.full_messages}"
+            raise StandardError, "TaskMaterial validation failed: #{task_material.errors.full_messages.join(', ')}"
+          end
           
           task_material.save!
         end

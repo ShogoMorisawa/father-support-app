@@ -39,90 +39,159 @@
       - button "完了" [ref=e27]
       - button "全て" [ref=e28]
     - generic [ref=e29]:
-      - heading "今日 (2)" [level=2] [ref=e31]
+      - heading "以降 (5)" [level=2] [ref=e31]
       - generic [ref=e32]:
-        - generic [ref=e33]:
-          - generic [ref=e36]:
-            - generic [ref=e37]: 不足：
-            - generic [ref=e38]: 障子紙（標準） -44.5枚
-          - generic [ref=e39]:
-            - generic [ref=e40]: 00:00
-            - generic [ref=e41]: 予約
-          - generic [ref=e43]: （無名）
-          - generic [ref=e44]:
-            - generic [ref=e45]: 見積項目
-            - generic [ref=e47]:
-              - generic [ref=e48]:
-                - generic [ref=e49]: 障子紙（標準）
-                - generic [ref=e50]: 20.0枚
-              - generic [ref=e52]: 不足
-          - generic [ref=e53]:
-            - button "日時変更" [ref=e54]
-            - button "成立" [ref=e55]
-            - button "不成立" [ref=e56]
-        - generic [ref=e57]:
-          - generic [ref=e59]: ✓ この見積は在庫で対応可能です
-          - generic [ref=e60]:
-            - generic [ref=e61]: 00:30
-            - generic [ref=e62]: 予約
-          - generic [ref=e63]:
-            - generic [ref=e64]: Thao Gutmann V
-            - generic [ref=e66] [cursor=pointer]: 080-7706-4151
-            - generic [ref=e67]:
-              - text: 別府市54325 Candida Estates
-              - generic [ref=e68] [cursor=pointer]: 📍地図で開く
-          - generic [ref=e69]:
-            - button "日時変更" [ref=e70]
-            - button "成立" [ref=e71]
-            - button "不成立" [ref=e72]
-      - heading "以降 (3)" [level=2] [ref=e74]
-      - generic [ref=e75]:
-        - generic [ref=e76]:
-          - generic [ref=e78]: ✓ この見積は在庫で対応可能です
-          - generic [ref=e79]:
-            - generic [ref=e80]: 2025-08-31 00:30
-            - generic [ref=e81]: 予約
-          - generic [ref=e82]:
-            - generic [ref=e83]: Jaqueline Swift
-            - generic [ref=e85] [cursor=pointer]: 080-5949-6142
-            - generic [ref=e86]:
-              - text: 由布市63427 Hammes Run
-              - generic [ref=e87] [cursor=pointer]: 📍地図で開く
-          - generic [ref=e88]:
-            - button "日時変更" [ref=e89]
-            - button "成立" [ref=e90]
-            - button "不成立" [ref=e91]
-        - generic [ref=e92]:
-          - generic [ref=e94]: ✓ この見積は在庫で対応可能です
-          - generic [ref=e95]:
-            - generic [ref=e96]: 2025-08-31 18:30
-            - generic [ref=e97]: 予約
-          - generic [ref=e98]:
-            - generic [ref=e99]: Brad Pacocha Sr.
-            - generic [ref=e101] [cursor=pointer]: 090-8183-6642
-            - generic [ref=e102]:
-              - text: 別府市67818 Thiel Fort
-              - generic [ref=e103] [cursor=pointer]: 📍地図で開く
-          - generic [ref=e104]:
+        - generic [ref=e33] [cursor=pointer]:
+          - generic [ref=e36] [cursor=pointer]:
+            - generic [ref=e37] [cursor=pointer]: 不足：
+            - generic [ref=e38] [cursor=pointer]: 障子紙（標準） -7.5枚
+          - generic [ref=e39] [cursor=pointer]:
+            - generic [ref=e40] [cursor=pointer]: 2025-08-30 20:30
+            - generic [ref=e41] [cursor=pointer]:
+              - generic [ref=e42] [cursor=pointer]: 予約
+              - generic [ref=e43] [cursor=pointer]: 詳細を見る →
+          - generic [ref=e44] [cursor=pointer]:
+            - generic [ref=e45] [cursor=pointer]: Maxwell Osinski
+            - generic [ref=e47] [cursor=pointer]: 070-6935-4736
+            - generic [ref=e48] [cursor=pointer]:
+              - text: 由布市2192 Bryan Isle
+              - generic [ref=e49] [cursor=pointer]: 📍地図で開く
+          - generic [ref=e50] [cursor=pointer]:
+            - generic [ref=e51] [cursor=pointer]: 見積項目
+            - generic [ref=e52] [cursor=pointer]:
+              - generic [ref=e53] [cursor=pointer]:
+                - generic [ref=e54] [cursor=pointer]:
+                  - generic [ref=e55] [cursor=pointer]: 障子紙（標準）
+                  - generic [ref=e56] [cursor=pointer]: 枚
+                - generic [ref=e58] [cursor=pointer]: 不足
+              - generic [ref=e59] [cursor=pointer]:
+                - generic [ref=e60] [cursor=pointer]:
+                  - generic [ref=e61] [cursor=pointer]: 網戸ネット
+                  - generic [ref=e62] [cursor=pointer]: m
+                - generic [ref=e64] [cursor=pointer]: OK
+          - generic [ref=e65] [cursor=pointer]:
+            - button "日時変更" [ref=e66]
+            - button "成立" [ref=e67]
+            - button "不成立" [ref=e68]
+        - generic [ref=e69] [cursor=pointer]:
+          - generic [ref=e71] [cursor=pointer]: ✓ この見積は在庫で対応可能です
+          - generic [ref=e72] [cursor=pointer]:
+            - generic [ref=e73] [cursor=pointer]: 2025-08-31 18:00
+            - generic [ref=e74] [cursor=pointer]:
+              - generic [ref=e75] [cursor=pointer]: 予約
+              - generic [ref=e76] [cursor=pointer]: 詳細を見る →
+          - generic [ref=e77] [cursor=pointer]:
+            - generic [ref=e78] [cursor=pointer]: Rev. Titus McKenzie
+            - generic [ref=e80] [cursor=pointer]: 090-5804-3545
+            - generic [ref=e81] [cursor=pointer]:
+              - text: 臼杵市194 Eliseo Mountains
+              - generic [ref=e82] [cursor=pointer]: 📍地図で開く
+          - generic [ref=e83] [cursor=pointer]:
+            - generic [ref=e84] [cursor=pointer]: 見積項目
+            - generic [ref=e85] [cursor=pointer]:
+              - generic [ref=e86] [cursor=pointer]:
+                - generic [ref=e87] [cursor=pointer]:
+                  - generic [ref=e88] [cursor=pointer]: 襖紙（白）
+                  - generic [ref=e89] [cursor=pointer]: 枚
+                - generic [ref=e91] [cursor=pointer]: OK
+              - generic [ref=e92] [cursor=pointer]:
+                - generic [ref=e93] [cursor=pointer]:
+                  - generic [ref=e94] [cursor=pointer]: 襖紙（柄）
+                  - generic [ref=e95] [cursor=pointer]: 枚
+                - generic [ref=e97] [cursor=pointer]: OK
+              - generic [ref=e98] [cursor=pointer]:
+                - generic [ref=e99] [cursor=pointer]:
+                  - generic [ref=e100] [cursor=pointer]: カーテン生地
+                  - generic [ref=e101] [cursor=pointer]: m
+                - generic [ref=e103] [cursor=pointer]: OK
+          - generic [ref=e104] [cursor=pointer]:
             - button "日時変更" [ref=e105]
             - button "成立" [ref=e106]
             - button "不成立" [ref=e107]
-        - generic [ref=e108]:
-          - generic [ref=e110]: ✓ この見積は在庫で対応可能です
-          - generic [ref=e111]:
-            - generic [ref=e112]: 2025-09-01 18:00
-            - generic [ref=e113]: 予約
-          - generic [ref=e114]:
-            - generic [ref=e115]: Avery O'Keefe
-            - generic [ref=e117] [cursor=pointer]: 070-3801-3538
-            - generic [ref=e118]:
-              - text: 臼杵市3828 Fay Summit
-              - generic [ref=e119] [cursor=pointer]: 📍地図で開く
-          - generic [ref=e120]:
-            - button "日時変更" [ref=e121]
-            - button "成立" [ref=e122]
-            - button "不成立" [ref=e123]
-  - button "Open Next.js Dev Tools" [ref=e129] [cursor=pointer]:
-    - img [ref=e130] [cursor=pointer]
-  - alert [ref=e133]
+        - generic [ref=e108] [cursor=pointer]:
+          - generic [ref=e110] [cursor=pointer]: ✓ この見積は在庫で対応可能です
+          - generic [ref=e111] [cursor=pointer]:
+            - generic [ref=e112] [cursor=pointer]: 2025-09-03 18:00
+            - generic [ref=e113] [cursor=pointer]:
+              - generic [ref=e114] [cursor=pointer]: 予約
+              - generic [ref=e115] [cursor=pointer]: 詳細を見る →
+          - generic [ref=e116] [cursor=pointer]:
+            - generic [ref=e117] [cursor=pointer]: Lanette Halvorson
+            - generic [ref=e119] [cursor=pointer]: 070-3595-2086
+            - generic [ref=e120] [cursor=pointer]:
+              - text: 日田市841 Kub Vista
+              - generic [ref=e121] [cursor=pointer]: 📍地図で開く
+          - generic [ref=e122] [cursor=pointer]:
+            - generic [ref=e123] [cursor=pointer]: 見積項目
+            - generic [ref=e125] [cursor=pointer]:
+              - generic [ref=e126] [cursor=pointer]:
+                - generic [ref=e127] [cursor=pointer]: 襖紙（柄）
+                - generic [ref=e128] [cursor=pointer]: 枚
+              - generic [ref=e130] [cursor=pointer]: OK
+          - generic [ref=e131] [cursor=pointer]:
+            - button "日時変更" [ref=e132]
+            - button "成立" [ref=e133]
+            - button "不成立" [ref=e134]
+        - generic [ref=e135] [cursor=pointer]:
+          - generic [ref=e138] [cursor=pointer]:
+            - generic [ref=e139] [cursor=pointer]: 不足：
+            - generic [ref=e140] [cursor=pointer]: 障子紙（標準） -1枚
+          - generic [ref=e141] [cursor=pointer]:
+            - generic [ref=e142] [cursor=pointer]: 2025-09-04 18:00
+            - generic [ref=e143] [cursor=pointer]:
+              - generic [ref=e144] [cursor=pointer]: 予約
+              - generic [ref=e145] [cursor=pointer]: 詳細を見る →
+          - generic [ref=e146] [cursor=pointer]:
+            - generic [ref=e147] [cursor=pointer]: Cassi Schuster
+            - generic [ref=e149] [cursor=pointer]: 080-1288-6044
+            - generic [ref=e150] [cursor=pointer]:
+              - text: 中津市449 Ruecker Garden
+              - generic [ref=e151] [cursor=pointer]: 📍地図で開く
+          - generic [ref=e152] [cursor=pointer]:
+            - generic [ref=e153] [cursor=pointer]: 見積項目
+            - generic [ref=e155] [cursor=pointer]:
+              - generic [ref=e156] [cursor=pointer]:
+                - generic [ref=e157] [cursor=pointer]: 障子紙（標準）
+                - generic [ref=e158] [cursor=pointer]: 枚
+              - generic [ref=e160] [cursor=pointer]: 不足
+          - generic [ref=e161] [cursor=pointer]:
+            - button "日時変更" [ref=e162]
+            - button "成立" [ref=e163]
+            - button "不成立" [ref=e164]
+        - generic [ref=e165] [cursor=pointer]:
+          - generic [ref=e168] [cursor=pointer]:
+            - generic [ref=e169] [cursor=pointer]: 不足：
+            - generic [ref=e170] [cursor=pointer]: 障子紙（標準） -11枚
+            - generic [ref=e171] [cursor=pointer]: / カーテンレール -4本
+          - generic [ref=e172] [cursor=pointer]:
+            - generic [ref=e173] [cursor=pointer]: 2025-09-04 20:30
+            - generic [ref=e174] [cursor=pointer]:
+              - generic [ref=e175] [cursor=pointer]: 予約
+              - generic [ref=e176] [cursor=pointer]: 詳細を見る →
+          - generic [ref=e177] [cursor=pointer]:
+            - generic [ref=e178] [cursor=pointer]: Kareen Hagenes
+            - generic [ref=e180] [cursor=pointer]: 070-3211-1758
+            - generic [ref=e181] [cursor=pointer]:
+              - text: 由布市6648 Jonnie Pass
+              - generic [ref=e182] [cursor=pointer]: 📍地図で開く
+          - generic [ref=e183] [cursor=pointer]:
+            - generic [ref=e184] [cursor=pointer]: 見積項目
+            - generic [ref=e185] [cursor=pointer]:
+              - generic [ref=e186] [cursor=pointer]:
+                - generic [ref=e187] [cursor=pointer]:
+                  - generic [ref=e188] [cursor=pointer]: 障子紙（標準）
+                  - generic [ref=e189] [cursor=pointer]: 枚
+                - generic [ref=e191] [cursor=pointer]: 不足
+              - generic [ref=e192] [cursor=pointer]:
+                - generic [ref=e193] [cursor=pointer]:
+                  - generic [ref=e194] [cursor=pointer]: カーテンレール
+                  - generic [ref=e195] [cursor=pointer]: 本
+                - generic [ref=e197] [cursor=pointer]: 不足
+          - generic [ref=e198] [cursor=pointer]:
+            - button "日時変更" [ref=e199]
+            - button "成立" [ref=e200]
+            - button "不成立" [ref=e201]
+  - button "Open Next.js Dev Tools" [ref=e207] [cursor=pointer]:
+    - img [ref=e208] [cursor=pointer]
+  - alert [ref=e211]
 ```

@@ -222,15 +222,21 @@ components:
     DeliveryTask:
       type: object
       properties:
-        taskId: { type: integer }
+        id: { type: integer }
         projectId: { type: integer }
         customerName: { type: string }
-        date: { type: string, format: date-time }
+        date: { type: string, format: date }
+        deliveryTime:
+          { type: string, format: time, nullable: true, description: '納品予定時刻（HH:MM形式）' }
+        scheduledAt: { type: string, format: date-time, nullable: true }
         status:
           type: string
-          enum: [pending, done, cancelled]
-        title: { type: string, description: 案件タイトル/概要 }
-      required: [taskId, projectId, date, status]
+          enum: [pending, delivered, cancelled]
+        title: { type: string, description: 納品タイトル }
+        tasksCount: { type: integer, description: 'タスク数' }
+        preparedCount: { type: integer, description: '準備完了タスク数' }
+        allPrepared: { type: boolean, description: '全タスク準備完了フラグ' }
+      required: [id, projectId, date, status]
     CompleteResult:
       type: object
       properties:

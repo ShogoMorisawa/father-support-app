@@ -59,9 +59,12 @@ class Api::ProjectsController < Api::BaseController
     tasks_count = p.tasks.size
     prepared_count = p.tasks.count { |t| t.status == "done" }
 
-    # 在庫不足チェック
-    stock_check = Inventory::CheckTaskMaterials.call(task_ids: p.tasks.pluck(:id))
-    has_insufficient_stock = stock_check.any? { |sc| !sc[:stock_sufficient] }
+    # 在庫不足チェック（タスクが存在する場合のみ）
+    has_insufficient_stock = false
+    if p.tasks.any?
+      stock_check = Inventory::CheckTaskMaterials.call(task_ids: p.tasks.pluck(:id))
+      has_insufficient_stock = stock_check.any? { |sc| !sc[:stock_sufficient] }
+    end
 
     {
       id: p.id,

@@ -25,7 +25,7 @@ module Tasks
           # 在庫不足チェック（事前検証）
           insufficient_materials = []
           @task.task_materials.each do |tm|
-            qty = tm.effective_qty_for_inventory
+            qty = tm.qty_planned || 0
             next unless qty > 0
             m = tm.material_id ? ::Material.lock.find(tm.material_id) : ::Material.find_by(name: tm.material_name)
             next unless m
@@ -42,10 +42,15 @@ module Tasks
             )
           end
           
-          # 在庫減算：qty_used が入っていればそれ、無ければ qty_planned を使用
+          # 在庫減算：qty_planned を qty_used に設定してから在庫を減算
           @task.task_materials.each do |tm|
-            qty = tm.effective_qty_for_inventory
+            qty = tm.qty_planned || 0
             next unless qty > 0
+            
+            # qty_planned を qty_used に設定
+            tm.update!(qty_used: qty)
+            
+            # 在庫から減算
             m = tm.material_id ? ::Material.lock.find(tm.material_id) : ::Material.find_by(name: tm.material_name)
             next unless m
             m.update!(current_qty: (m.current_qty.to_d - qty.to_d))
@@ -55,7 +60,7 @@ module Tasks
           @task.update!(status: "done", prepared_at: Time.current)
           
           changes = @task.task_materials.filter_map do |tm|
-            q = tm.effective_qty_for_inventory
+            q = tm.qty_planned || 0
             next if q <= 0
             name = tm.material&.name || tm.material_name
             "#{name} -#{q.to_s('F')}"

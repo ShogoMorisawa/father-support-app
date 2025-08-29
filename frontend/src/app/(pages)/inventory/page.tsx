@@ -1,17 +1,28 @@
 'use client';
 import Toast from '@/app/_components/Toast';
+import { MaterialCreateModal } from '@/app/_components/inventory/MaterialCreateModal';
 import { useMaterialsAvailability, useReceiveMaterial } from '@/lib/api/hooks';
 import { formatQty } from '@/lib/format/quantity';
-import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function InventoryPage() {
   const [order, setOrder] = useState<'available.asc' | 'available.desc' | 'name.asc' | 'name.desc'>(
     'available.asc',
   );
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const { data } = useMaterialsAvailability(order, 200);
   const receive = useReceiveMaterial();
   const [toast, setToast] = useState<string | null>(null);
+  const searchParams = useSearchParams();
   const items: any[] = data?.data?.items ?? [];
+
+  // URLパラメータでモーダルを開く
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowCreateModal(true);
+    }
+  }, [searchParams]);
 
   const getRowColor = (available: number, threshold: number) => {
     if (available < 0) return 'bg-red-50';
@@ -47,7 +58,15 @@ export default function InventoryPage() {
 
   return (
     <main className="max-w-6xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold">在庫</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">在庫</h1>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+        >
+          新しい資材を登録
+        </button>
+      </div>
 
       {/* 並び替えセレクト */}
       <div className="flex items-center gap-4">
@@ -123,6 +142,9 @@ export default function InventoryPage() {
         </table>
       </div>
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      {showCreateModal && (
+        <MaterialCreateModal open={showCreateModal} onClose={() => setShowCreateModal(false)} />
+      )}
     </main>
   );
 }

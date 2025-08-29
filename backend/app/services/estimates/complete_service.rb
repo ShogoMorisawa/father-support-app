@@ -21,6 +21,21 @@ module Estimates
           title       = @payload["projectTitle"] || @payload["title"] || "新規案件"
           due_on_s    = @payload["dueOn"] || @payload["due_on"]
           due_on      = due_on_s.present? ? Date.parse(due_on_s) : nil
+          
+          # 納品時刻の処理
+          scheduled_at = nil
+          delivery_at_s = @payload["deliveryAt"] || @payload["delivery_at"]
+          if delivery_at_s.present?
+            begin
+              scheduled_at = Time.parse(delivery_at_s)
+            rescue ArgumentError
+              # 時刻の解析に失敗した場合は、日付のみを使用
+              scheduled_at = due_on ? due_on.to_datetime.change({ hour: 10, min: 0 }) : nil
+            end
+          elsif due_on.present?
+            # デフォルト時刻は10:00
+            scheduled_at = due_on.to_datetime.change({ hour: 10, min: 0 })
+          end
 
           project = nil
           if accepted
@@ -32,20 +47,83 @@ module Estimates
               status: "delivery_scheduled",
               due_on: due_on
             )
-            # ❌ ここでダミータスクを自動生成していたのを削除
-            # 見積アイテムを初期タスクの「計画」に引き継ぐ（在庫は動かさない）
-            # task = Task.create!(project: project, title: "作業", status: "todo", due_on: due_on || Date.current)
-            # est.estimate_items.find_each do |ei|
-            #   TaskMaterial.create!(
-            #     task: task,
-            #     material: (Material.find_by(id: ei.material_id) || Material.find_by(name: ei.material_name)),
-            #     material_name: ei.material_name,
-            #     qty_planned: ei.quantity,
-            #     qty_used: 0
-            #   )
-            # end
+            
+            # 納品予定を作成
+            delivery = Delivery.create!(
+              project: project,
+              date: due_on || Date.current,
+              status: "pending",
+              title: "納品",
+              scheduled_at: scheduled_at
+            )
+            
+            # 見積もりアイテムまたはフロントエンドから送信された明細データを基にタスクを作成
+            items = @payload["items"] || []
+            
+            # 明細データが存在しない場合の処理
+            if items.empty? && est.estimate_items.empty?
+              # 明細データが全く存在しない場合はエラー
+              raise ActiveRecord::RecordInvalid.new(
+                OpenStruct.new(
+                  errors: OpenStruct.new(
+                    full_messages: ["明細データが存在しません。見積もりを成立できません。"]
+                  )
+                )
+              )
+            end
+            
+            if items.any?
+              # フロントエンドから送信された明細データを基にタスクを作成
+              items.each do |item|
+                next unless item["materialName"] && item["qty"] && item["qty"].to_f > 0
+                
+                task_title = "#{item['materialName']} #{item['qty']}#{item['unit'] || ''}"
+                
+                task = Task.create!(
+                  project: project, 
+                  title: task_title,
+                  kind: item["category"] || "work",
+                  status: "todo", 
+                  due_on: due_on || Date.current
+                )
+                
+                # 材料情報を設定
+                TaskMaterial.create!(
+                  task: task,
+                  material: (Material.find_by(id: item["materialId"]) || Material.find_by(name: item["materialName"])),
+                  material_name: item["materialName"],
+                  qty_planned: item["qty"].to_f,
+                  qty_used: nil,
+                  unit: item["unit"]
+                )
+              end
+            elsif est.estimate_items.any?
+              # 既存の見積もりアイテムを基にタスクを作成
+              est.estimate_items.find_each do |ei|
+                task_title = "#{ei.material_name} #{ei.qty}#{ei.unit}"
+                
+                task = Task.create!(
+                  project: project, 
+                  title: task_title,
+                  kind: ei.category || "work",
+                  status: "todo", 
+                  due_on: due_on || Date.current
+                )
+                
+                # 材料情報を設定
+                TaskMaterial.create!(
+                  task: task,
+                  material: (Material.find_by(id: ei.material_id) || Material.find_by(name: ei.material_name)),
+                  material_name: ei.material_name,
+                  qty_planned: ei.qty,
+                  qty_used: nil,
+                  unit: ei.unit
+                )
+              end
+            end
           end
 
+          # 見積もりの更新は最後に行う（タスク・納品作成が成功した後に）
           est.update!(
             status: "completed",
             accepted: accepted,

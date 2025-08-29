@@ -22,22 +22,23 @@ end
 # ---- マスタ：材料（在庫管理の基本）
 say "Create materials"
 materials_seed = [
-  { name: "障子紙（標準）", unit: "枚", threshold_qty: 15.0, current_qty: 25.0 },
-  { name: "障子紙（強化）", unit: "枚", threshold_qty: 10.0, current_qty: 18.0 },
-  { name: "襖紙（白）",   unit: "枚", threshold_qty: 10.0, current_qty: 20.0 },
-  { name: "襖紙（柄）",   unit: "枚", threshold_qty: 10.0, current_qty: 22.0 },
-  { name: "網戸ネット",   unit: "m",  threshold_qty: 20.0, current_qty: 35.0 },
-  { name: "木枠材",       unit: "本", threshold_qty: 30.0, current_qty: 50.0 },
-  { name: "桟",           unit: "本", threshold_qty: 30.0, current_qty: 45.0 },
-  { name: "タタミ表",     unit: "枚", threshold_qty: 10.0, current_qty: 15.0 },
-  { name: "カーテンレール", unit: "本", threshold_qty: 8.0, current_qty: 12.0 },
-  { name: "カーテン生地",   unit: "m",  threshold_qty: 25.0, current_qty: 40.0 },
+  { name: "障子紙（標準）", unit: "枚", category: "障子", threshold_qty: 15.0, current_qty: 25.0 },
+  { name: "障子紙（強化）", unit: "枚", category: "障子", threshold_qty: 10.0, current_qty: 18.0 },
+  { name: "襖紙（白）",   unit: "枚", category: "襖", threshold_qty: 10.0, current_qty: 20.0 },
+  { name: "襖紙（柄）",   unit: "枚", category: "襖", threshold_qty: 10.0, current_qty: 22.0 },
+  { name: "網戸ネット",   unit: "m",  category: "網戸", threshold_qty: 20.0, current_qty: 35.0 },
+  { name: "木枠材",       unit: "本", category: "障子", threshold_qty: 30.0, current_qty: 50.0 },
+  { name: "桟",           unit: "本", category: "障子", threshold_qty: 30.0, current_qty: 45.0 },
+  { name: "タタミ表",     unit: "枚", category: "襖", threshold_qty: 10.0, current_qty: 15.0 },
+  { name: "カーテンレール", unit: "本", category: "網戸", threshold_qty: 8.0, current_qty: 12.0 },
+  { name: "カーテン生地",   unit: "m",  category: "網戸", threshold_qty: 25.0, current_qty: 40.0 },
 ]
 
 materials = materials_seed.map do |m|
   Material.create!(
     name: m[:name],
     unit: m[:unit],
+    category: m[:category],
     current_qty: m[:current_qty],
     threshold_qty: m[:threshold_qty]
   )
@@ -96,7 +97,7 @@ estimates = []
       material_name: material.name,
       qty: [0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0].sample,
       unit: material.unit,
-      category: ["障子", "襖", "網戸", "カーテン", "その他"].sample,
+      category: material.category, # 材料のカテゴリを使用
       position: rand(0..10)
     )
   end
@@ -157,7 +158,8 @@ estimates.sample(8).each do |estimate|
         material: material,
         material_name: material.name,
         qty_planned: qty_planned,
-        qty_used: 0.0 # 未完了タスクは使用量0
+        qty_used: nil, # 未完了タスクは使用量未設定
+        unit: material.unit # 単位も設定
       )
     end
   end
@@ -218,7 +220,8 @@ say "Create independent projects"
         material: material,
         material_name: material.name,
         qty_planned: qty_planned,
-        qty_used: 0.0
+        qty_used: nil,
+        unit: material.unit # 単位も設定
       )
     end
   end
@@ -249,6 +252,8 @@ say "Create completed projects with proper inventory management"
   )
   
   # 完了済みタスク（在庫減算済み）
+  material_updates = {}
+  
   rand(2..3).times do
     task = Task.create!(
       project: project,
@@ -264,17 +269,29 @@ say "Create completed projects with proper inventory management"
       material = materials.sample
       qty_used = [0.5, 1.0, 1.5, 2.0].sample
       
-      # 在庫から減算
-      material.update!(current_qty: material.current_qty - qty_used)
+      # 在庫減算を集計
+      material_id = material.id
+      if material_updates[material_id]
+        material_updates[material_id] += qty_used
+      else
+        material_updates[material_id] = qty_used
+      end
       
       TaskMaterial.create!(
         task: task,
         material: material,
         material_name: material.name,
         qty_planned: qty_used,
-        qty_used: qty_used
+        qty_used: qty_used,
+        unit: material.unit # 単位も設定
       )
     end
+  end
+  
+  # 材料の在庫を一括更新
+  material_updates.each do |material_id, total_qty|
+    material = Material.find(material_id)
+    material.update!(current_qty: material.current_qty - total_qty)
   end
   
   # プロジェクト完了
@@ -289,7 +306,7 @@ Task.where(status: %w[todo doing]).limit(10).find_each do |task|
   insufficient_materials = []
   
   task.task_materials.each do |tm|
-    qty = tm.effective_qty_for_inventory
+    qty = tm.qty_planned || 0
     next unless qty > 0
     
     material = tm.material
@@ -302,16 +319,29 @@ Task.where(status: %w[todo doing]).limit(10).find_each do |task|
   end
   
   if can_complete
-    # 在庫減算
+    # 在庫減算を一括で実行
+    material_updates = {}
     task.task_materials.each do |tm|
-      qty = tm.effective_qty_for_inventory
+      qty = tm.qty_planned || 0
       next unless qty > 0
       
       material = tm.material
       next unless material
       
-      material.update!(current_qty: material.current_qty - qty)
+      material_id = material.id
+      if material_updates[material_id]
+        material_updates[material_id] += qty
+      else
+        material_updates[material_id] = qty
+      end
+      
       tm.update!(qty_used: qty)
+    end
+    
+    # 材料の在庫を一括更新
+    material_updates.each do |material_id, total_qty|
+      material = Material.find(material_id)
+      material.update!(current_qty: material.current_qty - total_qty)
     end
     
     # タスク完了
@@ -322,7 +352,7 @@ Task.where(status: %w[todo doing]).limit(10).find_each do |task|
     
     # 監査ログ
     changes = task.task_materials.filter_map do |tm|
-      q = tm.effective_qty_for_inventory
+      q = tm.qty_planned || 0
       next if q <= 0
       name = tm.material&.name || tm.material_name
       "#{name} -#{q.to_s('F')}"
@@ -402,7 +432,8 @@ TaskMaterial.create!(
   material: low_stock_material,
   material_name: low_stock_material.name,
   qty_planned: 5.0,
-  qty_used: 0.0
+  qty_used: nil,
+  unit: low_stock_material.unit
 )
 
 # ---- 完了
@@ -423,3 +454,8 @@ puts
 puts "Test Cases:"
 puts "  Low stock material: #{low_stock_material.name} (current: #{low_stock_material.current_qty}, threshold: #{low_stock_material.threshold_qty})"
 puts "  Test task ID: #{test_task.id} (will fail completion due to insufficient stock)"
+puts
+puts "Material Categories:"
+Material.all.each do |m|
+  puts "  #{m.name}: #{m.category} (#{m.unit})"
+end

@@ -2,6 +2,7 @@
 
 import { paths } from '@/lib/api/types';
 import { formatQty } from '@/lib/stock-calculator';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { MaterialPicker } from './MaterialPicker';
 
@@ -38,6 +39,9 @@ export function EstimateItemRow({
   // 材料が選択されているかどうか
   const hasSelectedMaterial = item.materialId && item.materialName;
   const selectedMaterial = availability.find((m) => m.id === item.materialId);
+
+  // 既存の自由入力済み行かどうか（materialIdなしでmaterialNameあり）
+  const isLegacyFreeInput = !item.materialId && item.materialName.trim();
 
   // itemが変更されたときにlocalItemを更新
   useEffect(() => {
@@ -120,6 +124,76 @@ export function EstimateItemRow({
     }
   };
 
+  // 既存の自由入力済み行の場合は編集不可
+  if (isLegacyFreeInput) {
+    return (
+      <div className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+          {/* カテゴリ */}
+          <div className="md:col-span-2">
+            <div className="p-3 bg-gray-100 border border-gray-300 rounded-md">
+              <div className="text-gray-600 font-medium text-sm">カテゴリー</div>
+              <div className="text-gray-500 text-sm mt-1">{item.category || '未設定'}</div>
+            </div>
+          </div>
+
+          {/* 材料名（編集不可） */}
+          <div className="md:col-span-4">
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <div className="text-yellow-800 font-medium">{item.materialName}</div>
+              <div className="text-yellow-600 text-sm mt-1">自由入力済み（編集不可）</div>
+              <div className="text-yellow-600 text-sm mt-1">
+                材料マスターから選択し直してください
+              </div>
+            </div>
+          </div>
+
+          {/* 数量（編集不可） */}
+          <div className="md:col-span-2">
+            <div className="p-3 bg-gray-100 border border-gray-300 rounded-md">
+              <div className="text-gray-600 font-medium text-sm">数量</div>
+              <div className="text-gray-500 text-sm mt-1">
+                {item.qty ? formatQty(item.qty) : '0'} {item.unit || ''}
+              </div>
+            </div>
+          </div>
+
+          {/* 行バッジ */}
+          <div className="md:col-span-2 flex justify-center">
+            <span className="px-3 py-1 text-xs font-medium rounded-full border bg-gray-100 text-gray-800 border-gray-200">
+              編集不可
+            </span>
+          </div>
+
+          {/* 操作ボタン */}
+          <div className="md:col-span-2 flex gap-2 justify-end">
+            <Link
+              href="/inventory?new=1"
+              target="_blank"
+              className="px-3 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors text-sm"
+            >
+              在庫一覧で登録
+            </Link>
+            <button
+              onClick={onDelete}
+              className="px-3 py-2 text-red-600 hover:text-red-800 border border-red-300 rounded-md hover:bg-red-50 transition-colors text-sm"
+            >
+              削除
+            </button>
+          </div>
+        </div>
+
+        {/* 警告メッセージ */}
+        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+          <div className="text-red-800 text-sm">
+            <span className="font-medium">⚠️ この行は編集できません。</span>
+            材料「{item.materialName}」を材料マスターに登録してから、再度選択してください。
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="border border-gray-200 rounded-lg p-4 mb-4 bg-white">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
@@ -155,19 +229,7 @@ export function EstimateItemRow({
               <div className="p-3 bg-green-50 border border-green-200 rounded-md">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="text-green-800 font-medium">
-                      <input
-                        type="text"
-                        value={localItem.materialName}
-                        onChange={(e) => {
-                          const updated = { ...localItem, materialName: e.target.value };
-                          setLocalItem(updated);
-                          onUpdate(updated);
-                        }}
-                        className="bg-transparent border-none p-0 text-green-800 font-medium focus:outline-none focus:ring-1 focus:ring-green-300 rounded px-1"
-                        placeholder="材料名を入力"
-                      />
-                    </div>
+                    <div className="text-green-800 font-medium">{item.materialName}</div>
                     {selectedMaterial && (
                       <div className="text-green-600 text-sm mt-1">
                         在庫: {selectedMaterial.availableQty} / 予定消費:{' '}
@@ -189,38 +251,6 @@ export function EstimateItemRow({
                 </div>
               </div>
             </div>
-          ) : item.materialName && !item.materialId ? (
-            // 自由入力済みの場合
-            <div className="space-y-2">
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="text-yellow-800 font-medium">
-                      <input
-                        type="text"
-                        value={localItem.materialName}
-                        onChange={(e) => {
-                          const updated = { ...localItem, materialName: e.target.value };
-                          setLocalItem(updated);
-                          onUpdate(updated);
-                        }}
-                        className="bg-transparent border-none p-0 text-yellow-800 font-medium focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1"
-                        placeholder="材料名を入力"
-                      />
-                    </div>
-                    <div className="text-yellow-600 text-sm mt-1">自由入力（在庫不明）</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleMaterialClear}
-                      className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-300 transition-colors"
-                    >
-                      クリア
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
           ) : (
             // カテゴリー選択済みで材料未選択の場合
             <div className="space-y-2">
@@ -228,7 +258,7 @@ export function EstimateItemRow({
                 value={localItem.materialId || null}
                 onChange={handleMaterialChange}
                 availability={availability}
-                placeholder="材料を選択または入力"
+                placeholder="材料を選択してください"
               />
             </div>
           )}
@@ -240,6 +270,7 @@ export function EstimateItemRow({
             <input
               type="number"
               step="0.001"
+              min="0.001"
               value={localItem.qty || ''}
               onChange={(e) => handleQtyChange(parseFloat(e.target.value) || 0)}
               className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -270,19 +301,19 @@ export function EstimateItemRow({
             </button>
             <button
               onClick={() => handleQuickAdd(-1)}
-              className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-300 transition-colors"
+              className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-800 rounded border border-blue-300 transition-colors"
             >
               -1
             </button>
             <button
               onClick={() => handleQuickAdd(-0.5)}
-              className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-300 transition-colors"
+              className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-800 rounded border border-blue-300 transition-colors"
             >
               -0.5
             </button>
             <button
               onClick={() => handleQuickAdd(-0.25)}
-              className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-300 transition-colors"
+              className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-800 rounded border border-blue-300 transition-colors"
             >
               -0.25
             </button>

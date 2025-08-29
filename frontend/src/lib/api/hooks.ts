@@ -170,6 +170,7 @@ export function useTaskBulkCreate(projectId: number) {
   return useMutation({
     mutationFn: (payload: {
       deliveryOn: string;
+      deliveryTime?: string;
       items: {
         title: string;
         kind?: string | null;
@@ -447,6 +448,36 @@ export function useMaterialsAvailability(order = 'available.asc', limit = 200) {
   });
 }
 
+// ---- Materials
+export function useCreateMaterial() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      name: string;
+      category: '障子' | '網戸' | '襖';
+      unit: string;
+      thresholdQty: number;
+      currentQty?: number;
+    }) => {
+      const materialData = {
+        material: {
+          name: payload.name,
+          category: payload.category,
+          unit: payload.unit,
+          threshold_qty: payload.thresholdQty,
+          current_qty: payload.currentQty || 0,
+        },
+      };
+      return api.post('/materials', materialData).then((r) => r.data);
+    },
+    onSuccess: () => {
+      // 材料関連のクエリを無効化して即座に反映
+      qc.invalidateQueries({ queryKey: ['materialsAvailability'] });
+      qc.invalidateQueries({ queryKey: ['materials'] });
+    },
+  });
+}
+
 // ---- Customers
 export function useCustomerSearch(q: string, limit = 20) {
   return useQuery({
@@ -562,6 +593,14 @@ export function useCompleteEstimate() {
       priceCents?: number;
       projectTitle?: string;
       dueOn?: string;
+      deliveryAt?: string;
+      items?: Array<{
+        materialId: number | null;
+        materialName: string;
+        category: string | null;
+        qty: number;
+        unit: string | null;
+      }>;
     }) => api.post(`/estimates/${payload.id}/complete`, payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['estimates'] });

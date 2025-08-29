@@ -1,6 +1,7 @@
 'use client';
 
 import { paths } from '@/lib/api/types';
+import Link from 'next/link';
 import { useState } from 'react';
 
 type MaterialsAvailabilityItem =
@@ -22,53 +23,39 @@ export function MaterialPicker({
   value,
   onChange,
   availability,
-  placeholder = '材料を選択または入力',
+  placeholder = '材料を選択してください',
 }: MaterialPickerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [customInput, setCustomInput] = useState('');
 
   const selectedMaterial = availability.find((m) => m.id === value);
 
-  // 検索フィルタリング
+  // 検索フィルタリング（材料マスターからのみ）
   const filteredMaterials = availability.filter(
     (material) =>
       material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.name.includes(searchTerm),
   );
 
-  const handleCustomInput = (input: string) => {
-    setCustomInput(input);
-    // 入力内容を常に更新（空文字列でも）
-    onChange(null, input);
-  };
-
   const handleSearchChange = (input: string) => {
     setSearchTerm(input);
-    // 検索フィールドでも自由入力を可能にする
-    if (input && !availability.find((m) => m.name.toLowerCase() === input.toLowerCase())) {
-      setCustomInput(input);
-      onChange(null, input);
-    }
   };
 
   const handleMaterialSelect = (material: MaterialsAvailabilityItem) => {
     onChange(material.id, material.name, material.unit || undefined, undefined);
-    setCustomInput('');
     setSearchTerm(material.name); // 選択された材料名を検索フィールドに表示
     setIsOpen(false);
   };
 
   const handleClear = () => {
     onChange(null, '');
-    setCustomInput('');
     setSearchTerm('');
   };
 
   return (
     <div className="relative">
       <div className="flex gap-2">
-        {/* 統合された材料選択・自由入力フィールド */}
+        {/* 材料選択フィールド（自由入力不可） */}
         <div className="relative flex-1">
           <input
             type="text"
@@ -76,7 +63,7 @@ export function MaterialPicker({
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
             onFocus={() => setIsOpen(true)}
-            onBlur={() => setTimeout(() => setIsOpen(false), 200)} // 少し遅延させて選択可能にする
+            onBlur={() => setTimeout(() => setIsOpen(false), 200)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
 
@@ -93,15 +80,18 @@ export function MaterialPicker({
                       <span className="font-medium">{material.name}</span>
                       <span className="text-sm text-gray-500">在庫 {material.availableQty}</span>
                     </div>
-                    {material.unit && (
-                      <div className="text-xs text-gray-400 mt-1">単位: {material.unit}</div>
-                    )}
+                    <div className="text-xs text-gray-400 mt-1">
+                      {(material as any).category && (
+                        <span className="mr-2">カテゴリー: {(material as any).category}</span>
+                      )}
+                      {material.unit && <span>単位: {material.unit}</span>}
+                    </div>
                   </div>
                 ))
               ) : searchTerm ? (
-                <div className="px-3 py-2 text-gray-500">「{searchTerm}」で自由入力として使用</div>
+                <div className="px-3 py-2 text-gray-500">「{searchTerm}」は見つかりません</div>
               ) : (
-                <div className="px-3 py-2 text-gray-500">材料を選択または入力してください</div>
+                <div className="px-3 py-2 text-gray-500">材料を選択してください</div>
               )}
             </div>
           )}
@@ -131,13 +121,20 @@ export function MaterialPicker({
         </div>
       )}
 
-      {/* 自由入力の情報表示 */}
-      {searchTerm && !selectedMaterial && (
+      {/* 材料が見つからない場合の警告と在庫一覧へのリンク */}
+      {searchTerm && !selectedMaterial && filteredMaterials.length === 0 && (
         <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
-          <div className="text-yellow-800">
-            <span className="font-medium">自由入力:</span> {searchTerm}
+          <div className="text-yellow-800 mb-2">
+            <span className="font-medium">材料が見つかりません。</span>
+            新規登録は在庫一覧から行ってください。
           </div>
-          <div className="text-yellow-600 mt-1">在庫不明（材料マスターに登録されていません）</div>
+          <Link
+            href="/inventory?new=1"
+            target="_blank"
+            className="inline-flex items-center px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 rounded border border-blue-300 transition-colors"
+          >
+            在庫一覧で新規資材を登録
+          </Link>
         </div>
       )}
     </div>
